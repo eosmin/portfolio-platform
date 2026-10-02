@@ -28,16 +28,14 @@ Settings → Rules → Rulesets → New ruleset → **New branch ruleset**:
 
 - Ruleset name: `protect-main`
 - Enforcement status: **Active** (not _Disabled_ or _Evaluate_)
-- Bypass list: empty
+- Bypass list: empty — do **not** add the owner's admin role or anyone else
 - Target branches → **Add target** → **Include default branch** (`main`). Alternative: **Include by pattern** → `main`. Without a target the ruleset applies to nothing.
 - Branch rules to tick:
-
 - Restrict deletions
 - Block force pushes
 - Require linear history
 - Require a pull request before merging (allowed merge methods: **Squash** only)
-- Require status checks to pass — **added later, after Phase 15** (TDD step 62): GitHub only offers a check for selection once it has run, so merge the CI PR, let the workflows run green once, then add the job names (`api`, `site`, `shared`, `compose-smoke`, `repo` jobs, as listed in the Phase 15 hand-over) here. Until then the ruleset is PR-only without required checks
-- Do **not** add the owner's admin role (or anyone) to the bypass list
+- Require status checks to pass — **leave unticked for now; added later, after Phase 15** (TDD step 62): GitHub only offers a check for selection once it has run, so merge the CI PR, let the workflows run green once, then add the job names (`api`, `site`, `shared`, `compose-smoke`, `repo` jobs, as listed in the Phase 15 hand-over) here. Until then the ruleset is PR-only without required checks
 
 Repo Settings → General → Pull Requests: enable **Allow squash merging** only, set default commit message to **Pull request title**, enable **Automatically delete head branches**.
 
