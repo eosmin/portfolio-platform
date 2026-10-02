@@ -9,3 +9,5 @@ allowBuilds:
   ssh2: false # optional native (Testcontainers) — falls back to pure JS
   cpu-features: false # optional native (via ssh2)
   '@scarf/scarf': false # analytics postinstall — deny
+minimumReleaseAgeExclude:
+  - vite@8.3.2
