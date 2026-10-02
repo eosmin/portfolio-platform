@@ -39,6 +39,7 @@ export const certification = {
   name: 'AWS Certified Solutions Architect – Associate',
   issuer: 'Amazon Web Services',
   category: 'Cloud',
+  description: 'Designing distributed systems on AWS.',
   credentialId: 'ABC123',
   credentialUrl: 'https://www.credly.com/badges/abc123',
   badgeImageUrl: null,

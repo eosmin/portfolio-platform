@@ -117,6 +117,7 @@ describe('certificationSchema', () => {
     const minimal = {
       ...f.certification,
       category: null,
+      description: null,
       credentialId: null,
       credentialUrl: null,
       badgeImageUrl: null,
@@ -134,6 +135,14 @@ describe('certificationSchema', () => {
     expect(
       certificationSchema.safeParse({ ...f.certification, issuedAt: '2025-13-40' }).success,
     ).toBe(false);
+  });
+  it('limits description to 500 chars and rejects an empty one', () => {
+    expect(
+      certificationSchema.safeParse({ ...f.certification, description: 'x'.repeat(501) }).success,
+    ).toBe(false);
+    expect(certificationSchema.safeParse({ ...f.certification, description: '' }).success).toBe(
+      false,
+    );
   });
   it('derives input and update schemas keeping the date rule', () => {
     const input = f.without(f.certification, 'id', 'createdAt', 'updatedAt');

@@ -13,6 +13,7 @@ const certificationFields = z.object({
   name: shortTextSchema,
   issuer: shortTextSchema,
   category: shortTextSchema.nullable(),
+  description: z.string().trim().min(1).max(500).nullable(),
   credentialId: shortTextSchema.nullable(),
   credentialUrl: httpUrlSchema.nullable(),
   badgeImageUrl: httpUrlSchema.nullable(),
