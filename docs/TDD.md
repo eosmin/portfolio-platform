@@ -493,7 +493,7 @@ Project (id, slug, title, description, body, repoUrl?, demoUrl?, coverImage?, te
 BlogPost (id, slug, title, excerpt, body, coverImage?, tags[], publishedAt, createdAt, updatedAt)
 Skill (id, name, category, proficiency)
 Language (id, name, level CEFR, order)
-Certification (id, name, issuer, category?, credentialId?, credentialUrl?, badgeImageUrl?, issuedAt, expiresAt?, skills[], order, createdAt, updatedAt)
+Certification (id, name, issuer, category?, description?, credentialId?, credentialUrl?, badgeImageUrl?, issuedAt, expiresAt?, skills[], order, createdAt, updatedAt)
 ExperienceItem (id, title, company, startDate, endDate?, summary, highlights[])
 ProfileDetail (id, key, value, group, order)
 SocialLink (id, platform, url, label?, icon?, order, visible)
@@ -503,7 +503,7 @@ AdminUser (id, email, passwordHash, createdAt)
 ```
 
 - `Language.level` is a CEFR enum: `A1 | A2 | B1 | B2 | C1 | C2 | NATIVE`. Language **exam credentials** (Cambridge, TOEFL, DELE, …) are not stored on `Language`; they are regular `Certification` rows (e.g. `category: 'Language'`). One representation of "a credential I hold" — DRY.
-- **`Certification` is issuer-agnostic.** There is **no issuer/provider enum and no issuer-specific code**: `issuer` is free text (`"Amazon Web Services"`, `"Cisco"`, `"Google Cloud"`, `"Microsoft"`, `"CompTIA"`, `"Cambridge"`, …) and `category` is optional free text used only for UI grouping (`"Cloud"`, `"Security"`, `"Networking"`, `"Language"`, …). Fields: `name` (full official title, e.g. `"AWS Certified Solutions Architect – Associate"`), `credentialId?` (the issuer's ID/code), `credentialUrl?` (public verification link — Credly, Accredible, Cisco, a PDF…), `badgeImageUrl?` (optional badge image URL), `issuedAt` (date), `expiresAt?` (date; `null` = does not expire), `skills[]` (free-text tags, e.g. `["EC2", "VPC", "IAM"]`), `order` (manual display order). Validity is **derived, never stored**: a certification is *expired* when `expiresAt` is set and earlier than now (helper `isCertificationExpired(cert, now)` in `packages/shared`). Adding a certification from a new issuer is a data change only — no migration, no code change.
+- **`Certification` is issuer-agnostic.** There is **no issuer/provider enum and no issuer-specific code**: `issuer` is free text (`"Amazon Web Services"`, `"Cisco"`, `"Google Cloud"`, `"Microsoft"`, `"CompTIA"`, `"Cambridge"`, …) and `category` is optional free text used only for UI grouping (`"Cloud"`, `"Security"`, `"Networking"`, `"Language"`, …). Fields: `name` (full official title, e.g. `"AWS Certified Solutions Architect – Associate"`), `description?` (short plain-text summary of what the certification covers, max 500 chars), `credentialId?` (the issuer's ID/code), `credentialUrl?` (public verification link — Credly, Accredible, Cisco, a PDF…), `badgeImageUrl?` (optional badge image URL), `issuedAt` (date), `expiresAt?` (date; `null` = does not expire), `skills[]` (free-text tags, e.g. `["EC2", "VPC", "IAM"]`), `order` (manual display order). Validity is **derived, never stored**: a certification is *expired* when `expiresAt` is set and earlier than now (helper `isCertificationExpired(cert, now)` in `packages/shared`). Adding a certification from a new issuer is a data change only — no migration, no code change.
 - `ProfileDetail` is a generic key/value store for misc public profile facts. Examples: `{key: 'location', value: 'Mexico City', group: 'basics', order: 0}`, `{key: 'available_for', value: 'Full-time / Contract', group: 'basics', order: 1}`, `{key: 'years_experience', value: '6', group: 'basics', order: 2}`. UI groups items by `group` and sorts by `order`.
 - `SocialLink.platform` is an enum: `GITHUB | LINKEDIN | TWITTER | WEBSITE | EMAIL | RESUME | YOUTUBE | INSTAGRAM | OTHER`. `url` is the full URL (for `EMAIL`, store as `mailto:foo@bar.com`). `label?` overrides the default platform label. `icon?` is an optional Lucide icon name override (defaults are derived from `platform`). `order` controls render order. `visible` toggles soft-hide without delete.
 - `ContactMessage.ipHash` is a salted SHA-256 of the IP (no plaintext IP retained — privacy).
@@ -866,7 +866,7 @@ Single PostgreSQL database. Single schema (`public`). Tables (Drizzle `pgTable`;
 - `BlogPost` (`id`, `slug` UNIQUE, `title`, `excerpt`, `body` Markdown, `coverImage?`, `tags` `text[]`, `publishedAt` timestamptz, timestamps).
 - `Skill` (`id`, `name`, `category`, `proficiency` integer 1–5, CHECK 1–5).
 - `Language` (`id`, `name`, `level` enum `A1|A2|B1|B2|C1|C2|NATIVE`, `order` integer).
-- `Certification` (`id`, `name`, `issuer` text — **free text, no enum**, `category?` text, `credentialId?` text, `credentialUrl?` text, `badgeImageUrl?` text, `issuedAt` date, `expiresAt?` date, `skills` `text[]` DEFAULT `{}`, `order` integer DEFAULT 0, timestamps). CHECK (`expiresAt` IS NULL OR `expiresAt` >= `issuedAt`). `credentialUrl`/`badgeImageUrl` are validated as `http(s)` URLs by the shared Zod schema.
+- `Certification` (`id`, `name`, `issuer` text — **free text, no enum**, `category?` text, `description?` text (max 500 chars, enforced by the shared Zod schema), `credentialId?` text, `credentialUrl?` text, `badgeImageUrl?` text, `issuedAt` date, `expiresAt?` date, `skills` `text[]` DEFAULT `{}`, `order` integer DEFAULT 0, timestamps). CHECK (`expiresAt` IS NULL OR `expiresAt` >= `issuedAt`). `credentialUrl`/`badgeImageUrl` are validated as `http(s)` URLs by the shared Zod schema.
 - `ExperienceItem` (`id`, `title`, `company`, `startDate` date, `endDate?` date, `summary`, `highlights` `text[]`).
 - `ProfileDetail` (`id`, `key`, `value`, `group`, `order` integer). UNIQUE (`group`, `key`).
 - `SocialLink` (`id`, `platform` enum `GITHUB|LINKEDIN|TWITTER|WEBSITE|EMAIL|RESUME|YOUTUBE|INSTAGRAM|OTHER`, `url`, `label?`, `icon?`, `order` integer, `visible` boolean DEFAULT true).
@@ -908,13 +908,13 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 ### 11.2 Public write
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/v1/contact` | rate-limited 5/h/IP |
-| POST | `/v1/analytics/views/:page` | rate-limited 60/min/IP, no body |
+| POST | `/v1/contact` | rate-limited 5/h/IP; `201` with no body (§11.6) |
+| POST | `/v1/analytics/views/:page` | rate-limited 60/min/IP, no request body; `204` with no body; `:page` format validated (§11.6) |
 
 ### 11.3 Admin (JWT-protected, `/v1/admin/*`)
 | Method | Path |
 |---|---|
-| POST | `/v1/admin/auth/login` (the only unauthenticated admin route; no logout — see §3.4) |
+| POST | `/v1/admin/auth/login` (the only unauthenticated admin route; no logout — see §3.4); returns `{ token, expiresIn }` (§11.6) |
 | POST/PATCH/DELETE | `/v1/admin/projects[/:id]` |
 | POST/PATCH/DELETE | `/v1/admin/blog[/:id]` |
 | POST/PATCH/DELETE | `/v1/admin/skills[/:id]` |
@@ -944,6 +944,32 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 ```json
 { "error": "string", "detail": "string", "code": "PROJECT_NOT_FOUND" }
 ```
+
+### 11.6 Response shapes of non-entity endpoints
+All are defined as Zod schemas in `packages/shared/src/schemas/` (source of truth); this section only records the decisions.
+
+**`GET /v1/github/stats`** → `200`:
+```json
+{
+  "username": "eosmin",
+  "profileUrl": "https://github.com/eosmin",
+  "publicRepos": 12,
+  "memberSince": "2019-04-02",
+  "lastPushedAt": "2026-10-01T18:20:00Z",
+  "topLanguages": [{ "name": "TypeScript", "repoCount": 7 }]
+}
+```
+- `memberSince` is the account's `created_at` as a date; `lastPushedAt` is the most recent `pushed_at` across the user's public repos (`null` if there are none); `topLanguages` counts public repos by their primary language, descending, top 5.
+- Deliberately **no** `followers` or `totalStars` (vanity metrics that add nothing to the portfolio). If they become useful later, adding them is a small schema + TDD change.
+- Built from two GitHub REST calls (`/users/:username` and the user's public repos), cached 10 min (§11.1).
+
+**`GET /v1/analytics/views`** → `200` array of `{ "page": "/blog/my-post", "views": 42 }`.
+
+**`POST /v1/analytics/views/:page`** → `204`, no body. `:page` is a lowercase, kebab-case route path without trailing slash (`/`, `/about`, `/blog/my-post`), max 200 characters; clients must URL-encode it (`%2Fblog%2Fmy-post`). Anything else → `400` error envelope, so the table cannot be filled with arbitrary strings. The shared `viewPageSchema` holds the rule.
+
+**`POST /v1/contact`** → `201`, no body (the visitor only needs to know it was received; the message `id` is not exposed). Invalid input → `400`, over the rate limit → `429`, both with the error envelope.
+
+**`POST /v1/admin/auth/login`** → `200 { "token": "<jwt>", "expiresIn": 86400 }`, where `expiresIn` is the token lifetime in **seconds** (the api converts `JWT_EXPIRES_IN`, e.g. `24h`, once). Wrong email **or** wrong password → always the same `401` with code `INVALID_CREDENTIALS` (never reveal which one failed).
 
 ---
 
