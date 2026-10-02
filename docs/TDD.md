@@ -712,7 +712,7 @@ Only `.env.example`. `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `IP_HA
 2. Commit on the branch (Conventional Commits, §6.2) and `git push -u origin <branch>`.
 3. Open a PR into `main` with `gh pr create` (title = the milestone Conventional Commit message, since it becomes the squash commit; body = summary + verification commands and results).
 4. **Stop.** The owner reviews on GitHub and squash-merges. The agent does not merge, approve or enable auto-merge.
-5. At the start of the next session, `git switch main && git pull --ff-only`, confirm the squash commit exists, and only then back-fill `PROGRESS.md` (on a new branch, via a new PR) and begin the next phase.
+5. At the start of the next session, `git switch main && git pull --ff-only` and confirm the squash commit exists before starting the next phase. There is **no follow-up docs PR**: `PROGRESS.md` already travelled inside the work PR (§13 "Progress log" rules 3–4).
 
 "Merged to `main`" anywhere in this TDD means exactly this: the owner squash-merged the PR on GitHub. Never commit broken code to a branch that will be PR'd; commit after each logical unit of work is complete and verified.
 
@@ -1000,20 +1000,27 @@ Animations: hero entrance, scroll-triggered reveals via Motion's `useInView`. Re
 
 ### Progress log (`PROGRESS.md`) — mandatory
 
-`PROGRESS.md` at the repo root is the single record of how far the build is and the file a new session reads first (the receiving agent keeps no memory between sessions). It is created in the **first commit** (`chore: initial project setup`) with **every numbered step of this §13 pre-listed** (steps 1–64) and this structure:
+`PROGRESS.md` at the repo root is the single record of how far the build is and the file a new session reads first (the receiving agent keeps no memory between sessions). It is created in the **first commit** (`chore: initial project setup`) with **every numbered step of this §13 pre-listed** (steps 1–64), each tagged with its phase number, plus a *Phases* table mapping every phase to its step range, and this structure:
 
 ```md
 # Progress Log
 
-**Current position:** Phase <n>, step <n> — <what runs next>
+**Current position:** Phase <n> (<phase name>), step <n> — <what runs next>
 **Last verified:** <date> — <command> → <result>
 
+## Phases
+| Phase | Name | Steps |
+|---|---|---|
+| 0 | Bootstrap | 1–3 |
+| 1 | packages/shared | 4–7 |
+<!-- … one row per "### Phase" heading of this section -->
+
 ## Steps
-| Step | Description | Status | Date | Commit | Verification | Notes |
-|---|---|---|---|---|---|---|
-| 1 | git init, root configs, pnpm install | done | 2026-10-05 | a1b2c3d | `pnpm install --frozen-lockfile` → ok | |
-| 2 | docker compose up -d postgres redis | in-progress | | | | |
-| 3 | Commit: chore: initial project setup | todo | | | | |
+| Step | Phase | Description | Status | Date | Commit | Verification | Notes |
+|---|---|---|---|---|---|---|---|
+| 1 | 0 | git init, root configs, pnpm install | done | 2026-10-05 | a1b2c3d | `pnpm install --frozen-lockfile` → ok | |
+| 2 | 0 | docker compose up -d postgres redis | in-progress | | | | |
+| 3 | 0 | Commit: chore: initial project setup | todo | | | | |
 
 ## Deviations from the TDD
 | Date | Step | What differed | Why | TDD updated? (§) |
@@ -1026,8 +1033,8 @@ Animations: hero entrance, scroll-triggered reveals via Motion's `useInView`. Re
 Rules:
 1. **Status** is exactly one of `todo`, `in-progress`, `done`, `blocked`. Only one step is `in-progress` at a time.
 2. A step becomes `done` **only after** its verification passed. The *Verification* cell holds the exact command and a one-line result (e.g. `pnpm turbo run lint typecheck test --filter=@portfolio/api → 4/4 tasks, coverage 78 %`). Steps with no command (e.g. "create file X") cite what was checked (file exists, lint clean).
-3. Update the log **in the same commit as the work**. A commit cannot contain its own hash, so the *Commit* cell is back-filled in the next commit that touches the log (or in a `docs(repo): update progress log` commit at the end of a phase). Every `done` step ends up with a short hash.
-4. Milestone ("Commit: …") steps are `done` only after the owner squash-merged the PR into `main` (§6.1). Until then the step stays `in-progress` with "PR #<n> awaiting owner review" in *Verification*, and the *Commit* cell is back-filled with the squash hash in the next session's first PR.
+3. Update the log **inside the same PR as the work** (never in a separate docs-only PR, and never directly on `main`). A commit cannot contain its own hash, so the *Commit* cell holds the **PR number** (`#<n>`, known once the PR is open: add it with one more commit pushed to that same PR); the squash hash is not recorded because `git log` and the PR page already link them.
+4. Milestone ("Commit: …") steps are marked `done` **in the phase PR itself**, with `PR #<n>` in *Commit* and the gate result in *Verification*, and *Current position* already points at the first step of the next phase. The owner's squash-merge is what accepts them; if the owner asks for changes, the agent fixes them on the same branch and PR (reverting the affected steps to `in-progress` while it works). Rule 4 of the session protocol (§13) says the same.
 5. **Deviations:** if reality forces a departure from this TDD (a version, an API, a path), record it in the Deviations table **and fix the TDD first** (project rule: the TDD is authoritative, so a divergence is a TDD bug) — never leave code and TDD disagreeing silently.
 6. **Blockers:** anything waiting on the owner (a secret, an account, a decision) goes under Blockers with the step it blocks; set that step to `blocked`.
 7. Never write secrets, tokens, hashes or real credentials into the log.
@@ -1037,10 +1044,10 @@ Rules:
 
 The default working unit is **one phase per session** (each `### Phase` heading below groups its numbered steps). Unless the owner says otherwise:
 
-1. **Open:** read `PROGRESS.md`; confirm *Current position* against `git log`; state which phase and steps this session will run. If the previous phase's PR is still open, stop and tell the owner (do not stack the next phase on an unmerged branch unless asked). Otherwise `git switch main && git pull --ff-only`, back-fill `PROGRESS.md` for the squash-merged PR (in this phase's first PR), and create the branch `feat/<phase-name>` from the up-to-date `main` (§6.1).
+1. **Open:** read `PROGRESS.md`; confirm *Current position* against `git log` and `gh pr list --state all`; state which phase and steps this session will run. If the previous phase's PR is still open (not merged), stop and tell the owner (do not stack the next phase on an unmerged branch unless asked). Otherwise `git switch main && git pull --ff-only` and create the branch `feat/<phase-name>` from the up-to-date `main` (§6.1).
 2. **Run the phase without asking between steps.** For each step: do the work → check its **Done when** → update `PROGRESS.md` → commit (Conventional Commits, §6).
 3. **Stop immediately, set the step to `blocked` or record a Deviation, and ask the owner** when: a verification fails and the cause is not a trivial fix; the TDD disagrees with reality (§13 progress rule 5); something needs the owner (a secret, an account, a decision).
-4. **Close the phase:** run the phase gate (`pnpm turbo run lint typecheck test --filter=<package>`, or the phase's own Done-when for infra/deploy phases), push the branch and open the PR into `main` (§6.1). Leave the milestone step `in-progress` and set *Current position* to "PR #<n> awaiting owner review and squash merge". Never merge it yourself. After the owner's squash, the next session pulls `main`, marks the step `done` with the squash hash, and moves *Current position* to the first step of the next phase (these `PROGRESS.md` edits go in the next phase's first PR, not directly on `main`).
+4. **Close the phase:** run the phase gate (`pnpm turbo run lint typecheck test --filter=<package>`, or the phase's own Done-when for infra/deploy phases), push the branch and open the PR into `main` (§6.1). Then, in the same PR, mark the phase's steps `done` in `PROGRESS.md` with `PR #<n>` in *Commit*, set *Current position* to the first step of the next phase, and push that one extra commit. Never merge the PR yourself; the owner reviews and squash-merges it.
 5. **Hand over, then stop.** The last message of the session contains: the PR link, steps completed (numbers), the verification commands run with their results, deviations and blockers (or "none"), what the next session will run, and anything the owner must prepare for it. Do **not** begin the next phase.
 
 Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10) in one session; split a long phase over several sessions — **Phase 5** by module halves (steps 24–25 are one commit per module, so stop after any module commit) and **Phase 11** by route (one commit per route). When a phase is split, the session ends on a green module/route commit, `PROGRESS.md` keeps the phase's remaining steps `todo`, and the milestone PR is opened (and squash-merged by the owner) at the end of the last session; a split phase may also use one PR per module/route. **Phase 14** (deployment) needs the owner present: accounts, tokens and secrets are theirs to provide.
