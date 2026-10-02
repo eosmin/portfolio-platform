@@ -1000,20 +1000,27 @@ Animations: hero entrance, scroll-triggered reveals via Motion's `useInView`. Re
 
 ### Progress log (`PROGRESS.md`) — mandatory
 
-`PROGRESS.md` at the repo root is the single record of how far the build is and the file a new session reads first (the receiving agent keeps no memory between sessions). It is created in the **first commit** (`chore: initial project setup`) with **every numbered step of this §13 pre-listed** (steps 1–64) and this structure:
+`PROGRESS.md` at the repo root is the single record of how far the build is and the file a new session reads first (the receiving agent keeps no memory between sessions). It is created in the **first commit** (`chore: initial project setup`) with **every numbered step of this §13 pre-listed** (steps 1–64), each tagged with its phase number, plus a *Phases* table mapping every phase to its step range, and this structure:
 
 ```md
 # Progress Log
 
-**Current position:** Phase <n>, step <n> — <what runs next>
+**Current position:** Phase <n> (<phase name>), step <n> — <what runs next>
 **Last verified:** <date> — <command> → <result>
 
+## Phases
+| Phase | Name | Steps |
+|---|---|---|
+| 0 | Bootstrap | 1–3 |
+| 1 | packages/shared | 4–7 |
+<!-- … one row per "### Phase" heading of this section -->
+
 ## Steps
-| Step | Description | Status | Date | Commit | Verification | Notes |
-|---|---|---|---|---|---|---|
-| 1 | git init, root configs, pnpm install | done | 2026-10-05 | a1b2c3d | `pnpm install --frozen-lockfile` → ok | |
-| 2 | docker compose up -d postgres redis | in-progress | | | | |
-| 3 | Commit: chore: initial project setup | todo | | | | |
+| Step | Phase | Description | Status | Date | Commit | Verification | Notes |
+|---|---|---|---|---|---|---|---|
+| 1 | 0 | git init, root configs, pnpm install | done | 2026-10-05 | a1b2c3d | `pnpm install --frozen-lockfile` → ok | |
+| 2 | 0 | docker compose up -d postgres redis | in-progress | | | | |
+| 3 | 0 | Commit: chore: initial project setup | todo | | | | |
 
 ## Deviations from the TDD
 | Date | Step | What differed | Why | TDD updated? (§) |
