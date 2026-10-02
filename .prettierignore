@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+.vitest
+pnpm-lock.yaml
+apps/api/drizzle
+docs/TDD.md
