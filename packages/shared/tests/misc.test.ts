@@ -15,6 +15,7 @@ import {
   paginationQuerySchema,
   projectSchema,
   skillSchema,
+  viewPageSchema,
 } from '../src/index.js';
 import * as f from './fixtures.js';
 
@@ -59,6 +60,25 @@ describe('analytics schemas', () => {
     expect(pageViewsSchema.safeParse([{ page: '/', views: 1 }]).success).toBe(true);
     expect(pageViewsSchema.safeParse([{ page: '/' }]).success).toBe(false);
   });
+  it('viewPageSchema accepts clean route paths', () => {
+    for (const page of ['/', '/about', '/blog/my-post', '/projects/portfolio-platform']) {
+      expect(viewPageSchema.safeParse(page).success).toBe(true);
+    }
+  });
+  it('viewPageSchema rejects arbitrary strings', () => {
+    for (const page of [
+      '',
+      'about',
+      '/About',
+      '/about/',
+      '//x',
+      '/a b',
+      '/<script>',
+      '/a'.repeat(101),
+    ]) {
+      expect(viewPageSchema.safeParse(page).success).toBe(false);
+    }
+  });
 });
 
 describe('githubStatsSchema', () => {
@@ -66,13 +86,21 @@ describe('githubStatsSchema', () => {
     username: 'example',
     profileUrl: 'https://github.com/example',
     publicRepos: 12,
-    followers: 3,
-    totalStars: 40,
+    memberSince: '2019-04-02',
+    lastPushedAt: '2026-10-01T18:20:00Z',
     topLanguages: [{ name: 'TypeScript', repoCount: 7 }],
   };
-  it('accepts valid stats and rejects negatives', () => {
+  it('accepts valid stats, including no pushes yet', () => {
     expect(githubStatsSchema.safeParse(stats).success).toBe(true);
-    expect(githubStatsSchema.safeParse({ ...stats, followers: -1 }).success).toBe(false);
+    expect(
+      githubStatsSchema.safeParse({ ...stats, lastPushedAt: null, topLanguages: [] }).success,
+    ).toBe(true);
+  });
+  it('rejects negatives, bad dates and more than 5 languages', () => {
+    expect(githubStatsSchema.safeParse({ ...stats, publicRepos: -1 }).success).toBe(false);
+    expect(githubStatsSchema.safeParse({ ...stats, memberSince: 'long ago' }).success).toBe(false);
+    const six = Array.from({ length: 6 }, (_, i) => ({ name: `L${i}`, repoCount: 1 }));
+    expect(githubStatsSchema.safeParse({ ...stats, topLanguages: six }).success).toBe(false);
   });
 });
 

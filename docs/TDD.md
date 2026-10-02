@@ -894,13 +894,13 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 ### 11.2 Public write
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/v1/contact` | rate-limited 5/h/IP |
-| POST | `/v1/analytics/views/:page` | rate-limited 60/min/IP, no body |
+| POST | `/v1/contact` | rate-limited 5/h/IP; `201` with no body (§11.6) |
+| POST | `/v1/analytics/views/:page` | rate-limited 60/min/IP, no request body; `204` with no body; `:page` format validated (§11.6) |
 
 ### 11.3 Admin (JWT-protected, `/v1/admin/*`)
 | Method | Path |
 |---|---|
-| POST | `/v1/admin/auth/login` (the only unauthenticated admin route; no logout — see §3.4) |
+| POST | `/v1/admin/auth/login` (the only unauthenticated admin route; no logout — see §3.4); returns `{ token, expiresIn }` (§11.6) |
 | POST/PATCH/DELETE | `/v1/admin/projects[/:id]` |
 | POST/PATCH/DELETE | `/v1/admin/blog[/:id]` |
 | POST/PATCH/DELETE | `/v1/admin/skills[/:id]` |
@@ -930,6 +930,32 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 ```json
 { "error": "string", "detail": "string", "code": "PROJECT_NOT_FOUND" }
 ```
+
+### 11.6 Response shapes of non-entity endpoints
+All are defined as Zod schemas in `packages/shared/src/schemas/` (source of truth); this section only records the decisions.
+
+**`GET /v1/github/stats`** → `200`:
+```json
+{
+  "username": "eosmin",
+  "profileUrl": "https://github.com/eosmin",
+  "publicRepos": 12,
+  "memberSince": "2019-04-02",
+  "lastPushedAt": "2026-10-01T18:20:00Z",
+  "topLanguages": [{ "name": "TypeScript", "repoCount": 7 }]
+}
+```
+- `memberSince` is the account's `created_at` as a date; `lastPushedAt` is the most recent `pushed_at` across the user's public repos (`null` if there are none); `topLanguages` counts public repos by their primary language, descending, top 5.
+- Deliberately **no** `followers` or `totalStars` (vanity metrics that add nothing to the portfolio). If they become useful later, adding them is a small schema + TDD change.
+- Built from two GitHub REST calls (`/users/:username` and the user's public repos), cached 10 min (§11.1).
+
+**`GET /v1/analytics/views`** → `200` array of `{ "page": "/blog/my-post", "views": 42 }`.
+
+**`POST /v1/analytics/views/:page`** → `204`, no body. `:page` is a lowercase, kebab-case route path without trailing slash (`/`, `/about`, `/blog/my-post`), max 200 characters; clients must URL-encode it (`%2Fblog%2Fmy-post`). Anything else → `400` error envelope, so the table cannot be filled with arbitrary strings. The shared `viewPageSchema` holds the rule.
+
+**`POST /v1/contact`** → `201`, no body (the visitor only needs to know it was received; the message `id` is not exposed). Invalid input → `400`, over the rate limit → `429`, both with the error envelope.
+
+**`POST /v1/admin/auth/login`** → `200 { "token": "<jwt>", "expiresIn": 86400 }`, where `expiresIn` is the token lifetime in **seconds** (the api converts `JWT_EXPIRES_IN`, e.g. `24h`, once). Wrong email **or** wrong password → always the same `401` with code `INVALID_CREDENTIALS` (never reveal which one failed).
 
 ---
 

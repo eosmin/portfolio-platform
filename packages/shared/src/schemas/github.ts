@@ -1,13 +1,15 @@
 import { z } from 'zod';
-import { httpUrlSchema, shortTextSchema } from './common.js';
+import { httpUrlSchema, isoDateSchema, isoDateTimeSchema, shortTextSchema } from './common.js';
 
 export const githubStatsSchema = z
   .object({
     username: shortTextSchema,
     profileUrl: httpUrlSchema,
     publicRepos: z.number().int().min(0),
-    followers: z.number().int().min(0),
-    totalStars: z.number().int().min(0),
-    topLanguages: z.array(z.object({ name: shortTextSchema, repoCount: z.number().int().min(1) })),
+    memberSince: isoDateSchema,
+    lastPushedAt: isoDateTimeSchema.nullable(),
+    topLanguages: z
+      .array(z.object({ name: shortTextSchema, repoCount: z.number().int().min(1) }))
+      .max(5),
   })
   .meta({ id: 'GithubStats' });

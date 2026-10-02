@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { pageViewCountSchema, pageViewsSchema } from '../schemas/analytics.js';
+import type { pageViewCountSchema, pageViewsSchema, viewPageSchema } from '../schemas/analytics.js';
 import type { loginInputSchema, loginResponseSchema } from '../schemas/auth.js';
 import type { blogPostInputSchema, blogPostSchema, blogPostUpdateSchema } from '../schemas/blog.js';
 import type {
@@ -76,6 +76,7 @@ export type ContactMessage = z.infer<typeof contactMessageSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
+export type ViewPage = z.infer<typeof viewPageSchema>;
 export type PageViewCount = z.infer<typeof pageViewCountSchema>;
 export type PageViews = z.infer<typeof pageViewsSchema>;
 
