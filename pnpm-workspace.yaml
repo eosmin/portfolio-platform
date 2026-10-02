@@ -1,0 +1,11 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+allowBuilds:
+  bcrypt: true # native addon (node-gyp-build) — required by the api
+  esbuild: true # postinstall that selects the platform binary
+  unrs-resolver: true # native resolver used by eslint-config-next's import resolver
+  protobufjs: false # optional postinstall (version check) — not needed
+  ssh2: false # optional native (Testcontainers) — falls back to pure JS
+  cpu-features: false # optional native (via ssh2)
+  '@scarf/scarf': false # analytics postinstall — deny
