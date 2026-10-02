@@ -6,11 +6,12 @@
 
 1. Follow §13 phase by phase, one numbered step at a time. Every step has a **Done when** criterion.
 2. Progress lives in `PROGRESS.md` (rules: TDD §13 "Progress log"). At the start of every session: read it, compare _Current position_ with `git log`, and resume there.
-3. One phase per session (TDD §13 "Session protocol"). After each step: verify its **Done when**, commit with Conventional Commits (TDD §6) and update `PROGRESS.md`; then continue to the next step of the same phase. Stop at the end of the phase, or immediately on a failed verification, a deviation or a blocker. Do not start the next phase unless the owner asks.
+3. One phase per session (TDD §13 "Session protocol"). After each step: verify its **Done when**, commit with Conventional Commits (TDD §6) and update `PROGRESS.md`; then continue to the next step of the same phase. Open the phase PR, then stop at the end of the phase, or immediately on a failed verification, a deviation or a blocker. Do not start the next phase unless the owner asks.
 4. Use the Context7 MCP before writing code against any library; the §2.7 notes override memory.
 5. Use exactly the pinned versions of §2. Never invent versions, never use `latest`, `^` or `~`.
-6. If the TDD conflicts with reality: stop, record it under Deviations in `PROGRESS.md`, fix `docs/TDD.md` first, then the code.
-7. No placeholder code, no `TODO` without a tracked task, no `any`, no secrets in git (TDD §5.3, §7.4).
+6. **`main` is PR-only.** Never commit, merge, rebase or push to `main`, locally or remotely. Work on a branch, push it, open a PR (`gh pr create`), then stop; the owner reviews and squash-merges on GitHub (TDD §6.1, §6.5). Do not bypass hooks (`--no-verify`) or protections. "Merged to `main`" means the owner squash-merged the PR.
+7. If the TDD conflicts with reality: stop, record it under Deviations in `PROGRESS.md`, fix `docs/TDD.md` first, then the code.
+8. No placeholder code, no `TODO` without a tracked task, no `any`, no secrets in git (TDD §5.3, §7.4).
 
 > Migrated from the portfolio root `CLAUDE.md` (Project #1 section) so it only loads when working in this directory. The root `CLAUDE.md` still applies (Core Development Philosophy, Design Principles, Context7 usage, Quality Standards, Instructions for AI Assistants) — this file adds the project-specific detail.
 
