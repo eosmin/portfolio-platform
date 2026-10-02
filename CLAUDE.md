@@ -5,7 +5,7 @@
 **The implementation guide is the TDD: `docs/TDD.md`.** (Until Phase 0 step 1 moves it there, it is `TDD.md` next to this file.) Read it completely before writing or changing code. It is authoritative: exact versions (§2), compatibility notes (§2.7), architecture, API contract, plan (§13) and definition of done (§17). The project description below is only a summary; if it disagrees with the TDD, the TDD wins and this file gets fixed.
 
 1. Follow §13 phase by phase, one numbered step at a time. Every step has a **Done when** criterion.
-2. Progress lives in `PROGRESS.md` (rules: TDD §13 "Progress log"). At the start of every session: read it, compare _Current position_ with `git log`, and resume there.
+2. Progress lives in `PROGRESS.md` (rules: TDD §13 "Progress log"). At the start of every session: read it, compare _Current position_ with `git log` and `gh pr list --state all`, and resume there. If the previous phase's PR is already merged, `git switch main && git pull --ff-only` and back-fill `PROGRESS.md` (steps `done` + squash hash) in the **first PR of the new phase**, never directly on `main`; if that PR is still open, stop and tell the owner (TDD §13 "Session protocol").
 3. One phase per session (TDD §13 "Session protocol"). After each step: verify its **Done when**, commit with Conventional Commits (TDD §6) and update `PROGRESS.md`; then continue to the next step of the same phase. Open the phase PR, then stop at the end of the phase, or immediately on a failed verification, a deviation or a blocker. Do not start the next phase unless the owner asks.
 4. Use the Context7 MCP before writing code against any library; the §2.7 notes override memory.
 5. Use exactly the pinned versions of §2. Never invent versions, never use `latest`, `^` or `~`.
