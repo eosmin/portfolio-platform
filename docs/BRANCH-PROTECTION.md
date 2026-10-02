@@ -30,7 +30,7 @@ Settings → Rules → Rulesets → New branch ruleset, target `main`, enforceme
 - Block force pushes
 - Require linear history
 - Require a pull request before merging (allowed merge methods: **Squash** only)
-- Require status checks to pass (add the CI jobs once Phase 15 creates them)
+- Require status checks to pass — **added later, after Phase 15** (TDD step 62): GitHub only offers a check for selection once it has run, so merge the CI PR, let the workflows run green once, then add the job names (`api`, `site`, `shared`, `compose-smoke`, `repo` jobs, as listed in the Phase 15 hand-over) here. Until then the ruleset is PR-only without required checks
 - Bypass list: **empty** (do not add the owner's admin role)
 
 Repo Settings → General → Pull Requests: enable **Allow squash merging** only, set default commit message to **Pull request title**, enable **Automatically delete head branches**.

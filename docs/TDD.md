@@ -736,7 +736,7 @@ chore: initial project setup
 
 ### 6.5 Branch protection safeguards
 - **Local (committed, automatic after `pnpm install` runs husky):** `.husky/pre-commit` and `.husky/pre-merge-commit` refuse to run on `main`; `.husky/pre-push` refuses any push whose remote ref is `refs/heads/main`. Do not bypass with `--no-verify`.
-- **Remote (owner configures once on GitHub — `main` ruleset):** require a pull request before merging (≥ 0 approvals is acceptable for a solo repo, but direct pushes blocked), require status checks (the CI jobs of Phase 15) once they exist, block force pushes and deletion, restrict merge methods to **squash only**, require linear history, and do **not** add bypass actors (including the owner's admin role). Exact steps and `gh api` commands are in `docs/BRANCH-PROTECTION.md`.
+- **Remote (owner configures once on GitHub — `main` ruleset):** require a pull request before merging (≥ 0 approvals is acceptable for a solo repo, but direct pushes blocked), require status checks (the CI jobs of Phase 15, added by the owner after those workflows first run green — step 62), block force pushes and deletion, restrict merge methods to **squash only**, require linear history, and do **not** add bypass actors (including the owner's admin role). Exact steps and `gh api` commands are in `docs/BRANCH-PROTECTION.md`.
 - The agent never changes these settings; they are the owner's.
 
 ---
@@ -1176,6 +1176,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** the compose-smoke job is green: `/healthz` 200 and `/v1/projects` 200.
 62. Commit: `ci: per-package workflows with quality gates`.
    - **Done when:** a PR opened from a branch shows all required checks green; squash-merged by the owner.
+   - **Owner action after this PR is merged (the agent cannot do it):** once the workflows have run green at least once on a PR, add their job names as **required status checks** to the `main` ruleset (Settings → Rules → `protect-main` → Require status checks; see `docs/BRANCH-PROTECTION.md`). Required checks can only be selected after GitHub has seen them run. The agent lists the exact check names (`<workflow> / <job>`) in the hand-over message and in `PROGRESS.md` under Blockers / open questions until the owner confirms.
 
 ### Phase 16 — Documentation
 63. README: monorepo diagram, getting started, screenshots, live URLs.
