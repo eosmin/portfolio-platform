@@ -1,0 +1,7 @@
+# Refuses any push that updates main on the remote (see docs/TDD.md §6.5).
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "BLOCKED: pushing to 'main' is not allowed. Push a branch and open a PR." >&2
+    exit 1
+  fi
+done

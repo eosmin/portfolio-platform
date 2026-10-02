@@ -1,3 +1,4 @@
+. "$(dirname "$0")/guard-main.sh"
 pnpm exec lint-staged
 pnpm exec turbo run typecheck --affected
 gitleaks git --pre-commit --staged --redact --no-banner

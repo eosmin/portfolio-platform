@@ -707,13 +707,22 @@ Only `.env.example`. `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `IP_HA
 ## 6. Git Strategy
 
 ### 6.1 Branch Model
-`main` (protected) + `feat/<feature-name>` / `fix/<name>` / `chore/<name>`. One feature branch per major feature (a §13 phase, or one module/route inside it). Merge to `main` via a simulated pull request using a **merge commit** (`git merge --no-ff`). Never commit broken code to `main`; commit after each logical unit of work is complete and verified.
+`main` (protected) + `feat/<feature-name>` / `fix/<name>` / `chore/<name>`. One feature branch per major feature (a §13 phase, or one module/route inside it). **Nothing reaches `main` except through a GitHub pull request that the owner reviews and squash-merges.** The agent never commits to, merges into, rebases onto or pushes to `main` (local or remote) — not even `git merge --no-ff`, a fast-forward, or a docs-only change. The flow for every unit of work is:
+1. Branch from an up-to-date `main` (`git switch main && git pull --ff-only`, then `git switch -c feat/<name>`).
+2. Commit on the branch (Conventional Commits, §6.2) and `git push -u origin <branch>`.
+3. Open a PR into `main` with `gh pr create` (title = the milestone Conventional Commit message, since it becomes the squash commit; body = summary + verification commands and results).
+4. **Stop.** The owner reviews on GitHub and squash-merges. The agent does not merge, approve or enable auto-merge.
+5. At the start of the next session, `git switch main && git pull --ff-only`, confirm the squash commit exists, and only then back-fill `PROGRESS.md` (on a new branch, via a new PR) and begin the next phase.
+
+"Merged to `main`" anywhere in this TDD means exactly this: the owner squash-merged the PR on GitHub. Never commit broken code to a branch that will be PR'd; commit after each logical unit of work is complete and verified.
+
+Safeguards (§6.5) enforce this locally and on GitHub; if a safeguard blocks an action, do not bypass it (`--no-verify`, force-push, admin override) — stop and tell the owner.
 
 ### 6.2 Conventional Commits
 Format: `<type>(<scope>): <short description>`.
 - Types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `test`, `ci`, `perf`.
 - Scopes: `api`, `site`, `shared`, `infra`, `db`, `repo`, `ci`, `deps`.
-- Each new dependency gets its own commit: `chore(deps): add <package>`. Intermediate commits (including these) land on the feature branch; the per-phase commit messages in §13 describe the milestone/merge commit.
+- Each new dependency gets its own commit: `chore(deps): add <package>`. Intermediate commits (including these) land on the feature branch; the per-phase commit messages in §13 become the PR title and hence the squash commit on `main`.
 
 ### 6.3 Initial Commit
 The first commit of the repo is always:
@@ -724,6 +733,11 @@ chore: initial project setup
 ### 6.4 Hooks (Husky 9 + lint-staged 17 + commitlint 21)
 - `.husky/pre-commit`: lint-staged (`eslint --fix` + `prettier --write` on staged TS/JS), `pnpm -w typecheck` for touched workspaces, `gitleaks` on staged changes.
 - `.husky/commit-msg`: `commitlint` with `@commitlint/config-conventional` (enforces §6.2 types).
+
+### 6.5 Branch protection safeguards
+- **Local (committed, automatic after `pnpm install` runs husky):** `.husky/pre-commit` and `.husky/pre-merge-commit` refuse to run on `main`; `.husky/pre-push` refuses any push whose remote ref is `refs/heads/main`. Do not bypass with `--no-verify`.
+- **Remote (owner configures once on GitHub — `main` ruleset):** require a pull request before merging (≥ 0 approvals is acceptable for a solo repo, but direct pushes blocked), require status checks (the CI jobs of Phase 15) once they exist, block force pushes and deletion, restrict merge methods to **squash only**, require linear history, and do **not** add bypass actors (including the owner's admin role). Exact steps and `gh api` commands are in `docs/BRANCH-PROTECTION.md`.
+- The agent never changes these settings; they are the owner's.
 
 ---
 
@@ -987,7 +1001,7 @@ Rules:
 1. **Status** is exactly one of `todo`, `in-progress`, `done`, `blocked`. Only one step is `in-progress` at a time.
 2. A step becomes `done` **only after** its verification passed. The *Verification* cell holds the exact command and a one-line result (e.g. `pnpm turbo run lint typecheck test --filter=@portfolio/api → 4/4 tasks, coverage 78 %`). Steps with no command (e.g. "create file X") cite what was checked (file exists, lint clean).
 3. Update the log **in the same commit as the work**. A commit cannot contain its own hash, so the *Commit* cell is back-filled in the next commit that touches the log (or in a `docs(repo): update progress log` commit at the end of a phase). Every `done` step ends up with a short hash.
-4. Milestone ("Commit: …") steps are `done` only when merged to `main` (§6.1).
+4. Milestone ("Commit: …") steps are `done` only after the owner squash-merged the PR into `main` (§6.1). Until then the step stays `in-progress` with "PR #<n> awaiting owner review" in *Verification*, and the *Commit* cell is back-filled with the squash hash in the next session's first PR.
 5. **Deviations:** if reality forces a departure from this TDD (a version, an API, a path), record it in the Deviations table **and fix the TDD first** (project rule: the TDD is authoritative, so a divergence is a TDD bug) — never leave code and TDD disagreeing silently.
 6. **Blockers:** anything waiting on the owner (a secret, an account, a decision) goes under Blockers with the step it blocks; set that step to `blocked`.
 7. Never write secrets, tokens, hashes or real credentials into the log.
@@ -997,15 +1011,15 @@ Rules:
 
 The default working unit is **one phase per session** (each `### Phase` heading below groups its numbered steps). Unless the owner says otherwise:
 
-1. **Open:** read `PROGRESS.md`; confirm *Current position* against `git log`; state which phase and steps this session will run. Create the branch `feat/<phase-name>` from an up-to-date `main` (§6.1).
+1. **Open:** read `PROGRESS.md`; confirm *Current position* against `git log`; state which phase and steps this session will run. If the previous phase's PR is still open, stop and tell the owner (do not stack the next phase on an unmerged branch unless asked). Otherwise `git switch main && git pull --ff-only`, back-fill `PROGRESS.md` for the squash-merged PR (in this phase's first PR), and create the branch `feat/<phase-name>` from the up-to-date `main` (§6.1).
 2. **Run the phase without asking between steps.** For each step: do the work → check its **Done when** → update `PROGRESS.md` → commit (Conventional Commits, §6).
 3. **Stop immediately, set the step to `blocked` or record a Deviation, and ask the owner** when: a verification fails and the cause is not a trivial fix; the TDD disagrees with reality (§13 progress rule 5); something needs the owner (a secret, an account, a decision).
-4. **Close the phase:** run the phase gate (`pnpm turbo run lint typecheck test --filter=<package>`, or the phase's own Done-when for infra/deploy phases), merge to `main` with `git merge --no-ff` (the simulated pull request, §6.1), mark the milestone step `done` with its hash, and update *Current position* to the first step of the next phase.
-5. **Hand over, then stop.** The last message of the session contains: steps completed (numbers), the verification commands run with their results, deviations and blockers (or "none"), what the next session will run, and anything the owner must prepare for it. Do **not** begin the next phase.
+4. **Close the phase:** run the phase gate (`pnpm turbo run lint typecheck test --filter=<package>`, or the phase's own Done-when for infra/deploy phases), push the branch and open the PR into `main` (§6.1). Leave the milestone step `in-progress` and set *Current position* to "PR #<n> awaiting owner review and squash merge". Never merge it yourself. After the owner's squash, the next session pulls `main`, marks the step `done` with the squash hash, and moves *Current position* to the first step of the next phase (these `PROGRESS.md` edits go in the next phase's first PR, not directly on `main`).
+5. **Hand over, then stop.** The last message of the session contains: the PR link, steps completed (numbers), the verification commands run with their results, deviations and blockers (or "none"), what the next session will run, and anything the owner must prepare for it. Do **not** begin the next phase.
 
-Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10) in one session; split a long phase over several sessions — **Phase 5** by module halves (steps 24–25 are one commit per module, so stop after any module commit) and **Phase 11** by route (one commit per route). When a phase is split, the session ends on a green module/route commit, `PROGRESS.md` keeps the phase's remaining steps `todo`, and the milestone merge happens in the last session. **Phase 14** (deployment) needs the owner present: accounts, tokens and secrets are theirs to provide.
+Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10) in one session; split a long phase over several sessions — **Phase 5** by module halves (steps 24–25 are one commit per module, so stop after any module commit) and **Phase 11** by route (one commit per route). When a phase is split, the session ends on a green module/route commit, `PROGRESS.md` keeps the phase's remaining steps `todo`, and the milestone PR is opened (and squash-merged by the owner) at the end of the last session; a split phase may also use one PR per module/route. **Phase 14** (deployment) needs the owner present: accounts, tokens and secrets are theirs to provide.
 
-> Every numbered step carries a **Done when** line: a concrete, checkable acceptance criterion. A step is `done` in `PROGRESS.md` only when its criterion holds and the evidence is recorded. Each step ends with `pnpm turbo run lint typecheck test --filter=<package>` green (e.g. `--filter=@portfolio/api`) and a Conventional Commit (§6). The "Commit:" lines below are the milestone commits (merged to `main` per §6.1); dependency commits (`chore(deps): add <package>`) happen on the way.
+> Every numbered step carries a **Done when** line: a concrete, checkable acceptance criterion. A step is `done` in `PROGRESS.md` only when its criterion holds and the evidence is recorded. Each step ends with `pnpm turbo run lint typecheck test --filter=<package>` green (e.g. `--filter=@portfolio/api`) and a Conventional Commit (§6). The "Commit:" lines below are the milestone commits (become the PR title and the squash commit on `main`, §6.1); dependency commits (`chore(deps): add <package>`) happen on the way.
 
 ### Phase 0 — Bootstrap
 1. `git init` **inside `portfolio-platform/`** (its own repository — never at the parent `portafolio/` folder), move `TDD.md` to `docs/TDD.md`, check the Appendix A block at the top of `CLAUDE.md`, create `PROGRESS.md`, root configs (§8.1), `pnpm install`.
@@ -1037,7 +1051,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 12. Verify: `pnpm turbo run lint typecheck test --filter=@portfolio/api`.
    - **Done when:** the command exits 0 and the result is pasted in `PROGRESS.md`.
 13. Commit: `feat(api): bootstrap Express 5 + Drizzle ORM + pino with quality tooling`.
-   - **Done when:** merged to `main` via merge commit; `PROGRESS.md` updated.
+   - **Done when:** PR squash-merged into `main` by the owner; `PROGRESS.md` updated.
 
 ### Phase 3 — apps/api DB + lib
 14. `src/db/schema/<entity>.ts` for each entity, including `certifications.ts` (`pgTable`, indexes, inferred types).
@@ -1161,7 +1175,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 61. Compose smoke: bring stack up, hit `/healthz`, hit `/v1/projects` returns 200.
    - **Done when:** the compose-smoke job is green: `/healthz` 200 and `/v1/projects` 200.
 62. Commit: `ci: per-package workflows with quality gates`.
-   - **Done when:** a PR opened from a branch shows all required checks green; merged to `main`.
+   - **Done when:** a PR opened from a branch shows all required checks green; squash-merged by the owner.
 
 ### Phase 16 — Documentation
 63. README: monorepo diagram, getting started, screenshots, live URLs.
@@ -1282,7 +1296,7 @@ Done = **all** of these are true:
 - [ ] Husky + lint-staged + commitlint installed; `repo.yml` runs PR-title commitlint + gitleaks.
 - [ ] `.env.example` lists every required variable; no secrets in git.
 - [ ] All commits follow Conventional Commits.
-- [ ] `main` is branch-protected; PR-only changes.
+- [ ] `main` is branch-protected (ruleset, §6.5); PR-only changes, squash-merged by the owner; no direct pushes.
 - [ ] Every `/v1/*` endpoint (public and `/v1/admin/*`) returns Zod-validated payloads matching `@portfolio/shared` schemas.
 - [ ] `GET /metrics` returns `401` without the correct `METRICS_TOKEN`; `GET /readyz` never leaks dependency details; `/docs` renders under its route-scoped CSP while every other route keeps the strict CSP.
 - [ ] `/openapi.json` validates as OpenAPI 3.x and documents every §11 endpoint (including `/v1/certifications`); `/docs` renders Swagger UI.
@@ -1322,7 +1336,7 @@ If you are the AI agent picking up this document, your operating contract:
 
 1. Read this entire TDD (`docs/TDD.md` in the repository) before writing the first file.
 2. Simulate real development. No big-bang generation.
-3. **Work one phase per session** (§13 "Session protocol"): after each step commit with a Conventional Commit (§6) and **update `PROGRESS.md` per the rules in §13 "Progress log"**, continue straight to the next step of the same phase, and **stop at the end of the phase** (after the milestone commit is merged) with the summary the protocol defines. Stop earlier — immediately — on a failing verification, a deviation from this TDD, or a blocker that needs the owner. At the start of any session, read `PROGRESS.md` first and resume from *Current position*. Never start the next phase in the same session unless the owner explicitly asks.
+3. **Work one phase per session** (§13 "Session protocol"): after each step commit with a Conventional Commit (§6) and **update `PROGRESS.md` per the rules in §13 "Progress log"**, continue straight to the next step of the same phase, and **stop at the end of the phase** (after the milestone PR is opened) with the summary the protocol defines. Stop earlier — immediately — on a failing verification, a deviation from this TDD, or a blocker that needs the owner. At the start of any session, read `PROGRESS.md` first and resume from *Current position*. Never start the next phase in the same session unless the owner explicitly asks.
 4. Use Context7 for every library before writing code against it. Especially: Turborepo 2 tasks schema; Next.js 16 (`cacheComponents`, `'use cache'` / `cacheLife` / `cacheTag`, `generateStaticParams`); React 19.3 features; Motion 13 (formerly Framer Motion; package renamed to `motion`); Express 5 (promise handling); Drizzle ORM 0.45 + drizzle-kit 0.31 (schema, `$inferSelect`/`$inferInsert`, migration generation); ioredis 6; jsonwebtoken 9 (explicit `algorithms`); zod-to-openapi 9 + swagger-ui-express 5; pino 10 + pino-http 11; helmet 8.3; cors 2.8.6; express-rate-limit 8 (`limit`, `ipKeyGenerator`); Vitest 5; msw 3; dotenv 18; pnpm 12; TypeScript 7 + 6 side by side; ESLint 9 flat config; Zod 4; PostgreSQL 18.
 5. Never invent versions. Use exactly the versions in §2.
 6. Honor §2.7 compatibility notes. Specifically:
