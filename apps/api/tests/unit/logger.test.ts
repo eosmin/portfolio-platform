@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
 import { describe, expect, it } from 'vitest';
-import { createLogger } from '../../src/config/logger.js';
+import { createLogger, devTransport } from '../../src/config/logger.js';
 
 function capture(): { lines: string[]; stream: Writable } {
   const lines: string[] = [];
@@ -23,6 +23,18 @@ describe('createLogger', () => {
     const output = lines.join('');
     expect(output).not.toContain('secret-token');
     expect(output).toContain('[Redacted]');
+  });
+
+  it('uses pino-pretty only in development', () => {
+    expect(devTransport('development')).toEqual({ target: 'pino-pretty' });
+    expect(devTransport('test')).toBeUndefined();
+    expect(devTransport('production')).toBeUndefined();
+  });
+
+  it('keeps JSON output with an explicit destination even in development', () => {
+    const { lines, stream } = capture();
+    createLogger('info', stream, 'development').info('plain');
+    expect(JSON.parse(lines.join('')) as { msg: string }).toMatchObject({ msg: 'plain' });
   });
 
   it('respects the level', () => {
