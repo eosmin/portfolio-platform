@@ -103,6 +103,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | express-rate-limit | **8.7.0** |
 | pino | **10.3.1** |
 | pino-http | **11.0.0** |
+| `pino-pretty` | **13.1.3** (dev only — readable logs when `NODE_ENV=development`; test and production stay JSON) |
 | prom-client | **15.1.3** |
 | Zod | **4.6.5** |
 | `@asteasolutions/zod-to-openapi` | **9.1.0** |
