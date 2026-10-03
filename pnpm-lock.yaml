@@ -205,6 +205,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@portfolio/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       dotenv:
         specifier: 18.0.5
         version: 18.0.5
