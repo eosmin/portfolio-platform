@@ -5,7 +5,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     env: {
       NODE_ENV: 'test',
-      DATABASE_URL: 'postgresql://portfolio:changeme@localhost:5432/portfolio',
+      // Port 1 refuses connections immediately: a unit test that touches the DB fails fast instead of hanging.
+      DATABASE_URL: 'postgresql://test:test@127.0.0.1:1/unreachable',
       REDIS_URL: 'redis://localhost:6379',
       JWT_SECRET: 'test-jwt-secret-at-least-16',
       ADMIN_EMAIL: 'admin@example.com',
