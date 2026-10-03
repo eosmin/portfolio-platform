@@ -1,0 +1,33 @@
+import { Writable } from 'node:stream';
+import { describe, expect, it } from 'vitest';
+import { createLogger } from '../../src/config/logger.js';
+
+function capture(): { lines: string[]; stream: Writable } {
+  const lines: string[] = [];
+  const stream = new Writable({
+    write(chunk: Buffer, _encoding, done): void {
+      lines.push(chunk.toString());
+      done();
+    },
+  });
+  return { lines, stream };
+}
+
+describe('createLogger', () => {
+  it('redacts authorization headers', () => {
+    const { lines, stream } = capture();
+    const log = createLogger('info', stream);
+    log.info({ req: { headers: { authorization: 'Bearer secret-token' } } }, 'request');
+    log.info({ headers: { authorization: 'Bearer secret-token' } }, 'headers');
+    log.info({ authorization: 'Bearer secret-token' }, 'top-level');
+    const output = lines.join('');
+    expect(output).not.toContain('secret-token');
+    expect(output).toContain('[Redacted]');
+  });
+
+  it('respects the level', () => {
+    const { lines, stream } = capture();
+    createLogger('warn', stream).info('hidden');
+    expect(lines).toHaveLength(0);
+  });
+});

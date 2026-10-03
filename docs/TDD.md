@@ -557,7 +557,8 @@ portfolio-platform/
 │   │   │   ├── meta/                 # drizzle-kit metadata
 │   │   │   └── ...
 │   │   ├── src/
-│   │   │   ├── main.ts               # bootstraps express
+│   │   │   ├── app.ts                # createApp(): Express app factory (no listen; Supertest imports it)
+│   │   │   ├── main.ts               # entrypoint: loads env, createApp(), listen(API_PORT)
 │   │   │   ├── config/
 │   │   │   │   ├── env.ts            # Zod-validated process.env
 │   │   │   │   ├── logger.ts         # pino + pino-http
@@ -819,7 +820,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 20. `src/admin/router.ts` (composes write endpoints with JWT guard).
 21. `src/routes/index.ts` (mounts the public routers and `admin/router.ts` under `/v1`; admin lives at `/v1/admin/*`).
 22. `src/config/openapi.ts` (registry + route definitions; needs the modules above), `src/routes/docs.ts` (mounts `/docs` and `/openapi.json`).
-23. `src/main.ts` (Express + middlewares + routes + Prom metrics + error handler; grows from the Phase 2 `/healthz` stub).
+23. `src/app.ts` + `src/main.ts` (Express + middlewares + routes + Prom metrics + error handler; grows from the Phase 2 `/healthz` stub).
 24. `Dockerfile`, `.dockerignore`.
 
 ### 8.4 apps/site
@@ -1079,7 +1080,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** `env.ts` rejects a missing/invalid variable at startup with a Zod error (unit-tested), requires `METRICS_TOKEN` only when `NODE_ENV=production`, and never prints secrets; the logger redacts `authorization`.
 10. `drizzle.config.ts` (drizzle-kit, `dialect: 'postgresql'`).
    - **Done when:** `pnpm --filter @portfolio/api exec drizzle-kit --version` runs and `drizzle.config.ts` throws a clear error when `DATABASE_URL` is unset.
-11. `src/main.ts` (`/healthz`).
+11. `src/app.ts` (`createApp()` with `/healthz`) and `src/main.ts` (`listen`).
    - **Done when:** a Supertest test gets `GET /healthz` → `200 {"status":"ok"}`; `pnpm --filter @portfolio/api dev` listens on `API_PORT`.
 12. Verify: `pnpm turbo run lint typecheck test --filter=@portfolio/api`.
    - **Done when:** the command exits 0 and the result is pasted in `PROGRESS.md`.
