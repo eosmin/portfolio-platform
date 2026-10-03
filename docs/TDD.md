@@ -258,8 +258,13 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
   - Apply at runtime via `apps/api/src/db/migrate.ts`:
     ```ts
     import { migrate } from 'drizzle-orm/node-postgres/migrator';
-    await migrate(db, { migrationsFolder: './drizzle' }); // path is relative to the process cwd (apps/api)
+    await migrate(db, {
+      migrationsFolder: './drizzle', // relative to the process cwd (apps/api)
+      migrationsTable: '__drizzle_migrations__', // must match drizzle.config.ts `migrations`;
+      migrationsSchema: 'public', // the runtime default is `drizzle.__drizzle_migrations`
+    });
     ```
+    `migrate.ts` exports `runMigrations(db)` (used by the integration tests) and runs it only when executed as a script (`import.meta.main`).
   - For prod, run the migrator on startup or as a Railway pre-deploy hook. Never use `drizzle-kit push` in production.
   - Studio (dev only): `pnpm --filter @portfolio/api db:studio`.
 - Query API: both **SQL-like** (`db.select().from(projects).where(eq(projects.slug, slug))`) and **relational** (`db.query.projects.findFirst({ where: ..., with: { ... } })`). Both fully typed; pick per-query whichever reads cleaner.
@@ -565,20 +570,22 @@ portfolio-platform/
 │   │   │   │   ├── logger.ts         # pino + pino-http
 │   │   │   │   └── openapi.ts        # zod-to-openapi registry
 │   │   │   ├── db/
-│   │   │   │   ├── index.ts          # drizzle(pool, { schema }) singleton
-│   │   │   │   ├── migrate.ts        # programmatic migrator entry
-│   │   │   │   ├── seed.ts           # demo + admin user seed
+│   │   │   │   ├── index.ts          # Pool + drizzle(pool, { schema }) singleton, `Database` type
+│   │   │   │   ├── migrate.ts        # `runMigrations(db)` + script entry (`import.meta.main`)
+│   │   │   │   ├── seed.ts           # `seedDatabase(db, options)` + script entry (`import.meta.main`)
+│   │   │   │   ├── seed-data.ts      # clearly fictional demo content
 │   │   │   │   └── schema/           # one file per entity, re-exported via index.ts
 │   │   │   │       ├── index.ts
-│   │   │   │       ├── projects.ts
-│   │   │   │       ├── blog.ts
-│   │   │   │       ├── skills.ts
-│   │   │   │       ├── languages.ts
-│   │   │   │       ├── certifications.ts
-│   │   │   │       ├── experience.ts
-│   │   │   │       ├── profile.ts          # ProfileDetail
-│   │   │   │       ├── social-links.ts
-│   │   │   │       ├── contact.ts
+│   │   │   │       ├── columns.ts      # shared `id`, `timestamps`, `emptyTextArray`
+│   │   │   │       ├── project.ts
+│   │   │   │       ├── blog-post.ts
+│   │   │   │       ├── skill.ts
+│   │   │   │       ├── language.ts
+│   │   │   │       ├── certification.ts
+│   │   │   │       ├── experience-item.ts
+│   │   │   │       ├── profile-detail.ts
+│   │   │   │       ├── social-link.ts
+│   │   │   │       ├── contact-message.ts
 │   │   │   │       ├── page-view.ts
 │   │   │   │       └── admin-user.ts
 │   │   │   ├── lib/
@@ -813,7 +820,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 12. `drizzle.config.ts` (drizzle-kit — `defineConfig({ dialect: 'postgresql', schema, out, dbCredentials })`).
 13. `src/db/schema/<entity>.ts` (one file per domain entity) + `src/db/schema/index.ts` re-export barrel.
 14. Generate first migration: `pnpm --filter @portfolio/api db:generate` → commits `drizzle/0000_init.sql`.
-15. `src/db/index.ts` (Pool + `drizzle(pool, { schema })` singleton), `src/db/migrate.ts` (`migrate(db, { migrationsFolder })`).
+15. `src/db/index.ts` (Pool + `drizzle(pool, { schema })` singleton), `src/db/migrate.ts` (`runMigrations(db)` → `migrate(db, { migrationsFolder, migrationsTable, migrationsSchema })`).
 16. `src/db/seed.ts` (demo data incl. certifications from more than one issuer + admin user upsert from `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`).
 17. `src/lib/redis.ts`, `src/utils/hash.ts` (salted SHA-256 with `IP_HASH_SALT`; used by `contact` and `analytics`).
 18. `src/middleware/*` (one file per concern).
@@ -1098,7 +1105,8 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 17. `src/db/index.ts` (Pool + drizzle singleton), `src/db/migrate.ts`.
    - **Done when:** `pnpm --filter @portfolio/api db:migrate` applies the migration against the compose Postgres and is idempotent on a second run.
 18. `src/db/seed.ts`.
-   - **Done when:** `pnpm --filter @portfolio/api db:seed` is re-runnable (upserts), inserts certifications from at least two different issuers, and upserts the admin from `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` without hashing.
+   - `seedDatabase(db, { admin, includeDemoData })` is exported. The admin is upserted by email (`ON CONFLICT (email)`). Most content tables have no natural unique key, so demo content is replaced (delete + insert) in one transaction on every run; it is skipped when `NODE_ENV=production` so curated content is never overwritten, while the admin upsert always runs.
+   - **Done when:** `pnpm --filter @portfolio/api db:seed` is re-runnable, inserts certifications from at least two different issuers, and upserts the admin from `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH` without hashing.
 19. `src/lib/redis.ts`, `src/utils/hash.ts`.
    - **Done when:** the Redis client connects to `redis:8.10.2` (RESP3 default) and a get/set/del round trip works; `hash.ts` returns a stable salted SHA-256 and never the plaintext input.
 20. Commit: `feat(api): Drizzle ORM schema, generated migrations, seed`.
