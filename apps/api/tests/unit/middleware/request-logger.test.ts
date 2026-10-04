@@ -37,10 +37,16 @@ describe('request logger', () => {
     });
   });
 
-  it('redacts the authorization header', async () => {
+  it('never logs request or response headers (authorization, cookies)', async () => {
     const { app, lines } = appWithCapturedLogs();
-    await request(app).get('/v1/skills').set('Authorization', 'Bearer secret-token');
-    expect(JSON.stringify(lines())).not.toContain('secret-token');
+    await request(app)
+      .get('/v1/skills')
+      .set('Authorization', 'Bearer secret-token')
+      .set('Cookie', 'session=secret-cookie');
+    const output = JSON.stringify(lines());
+    expect(output).not.toContain('secret-token');
+    expect(output).not.toContain('secret-cookie');
+    expect(output).not.toContain('headers');
   });
 
   it('skips /healthz and /readyz', async () => {

@@ -1115,7 +1115,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 
 ### Phase 4 — apps/api middleware
 21. `request-logger` (pino-http), `cors`, `helmet`, `rate-limit`, `auth-jwt`, `metrics-auth`, `cache` (Redis), `error-handler`.
-   - **Done when:** each middleware has unit tests: request logger logs one line per request through the shared pino `logger`, redacts `authorization` and skips `/healthz` and `/readyz`; CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
+   - **Done when:** each middleware has unit tests: request logger logs one line per request through the shared pino `logger`, logs no request or response headers (cookies, authorization) and skips `/healthz` and `/readyz`; CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
 22. Tests.
    - **Done when:** `pnpm turbo run lint typecheck test --filter=@portfolio/api` green.
 23. Commit: `feat(api): middleware (request-logger, cors, helmet, rate-limit, jwt, metrics-auth, redis-cache, errors)`.
