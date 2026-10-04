@@ -1,8 +1,12 @@
 import express, { type Express } from 'express';
+import { API_VERSION_PREFIX } from '@portfolio/shared';
+import { db } from './db/index.js';
 import { createCors } from './middleware/cors.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { securityHeaders } from './middleware/helmet.js';
 import { createRequestLogger } from './middleware/request-logger.js';
+import { createV1Router } from './routes/index.js';
+import { createServices } from './services.js';
 
 export function createApp(): Express {
   const app = express();
@@ -17,6 +21,8 @@ export function createApp(): Express {
   app.get('/healthz', (_req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.use(API_VERSION_PREFIX, createV1Router(createServices(db)));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
