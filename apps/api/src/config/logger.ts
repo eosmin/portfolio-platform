@@ -15,7 +15,9 @@ export const REDACTED_PATHS = [
 
 // pino-pretty is dev-only; test and production stay JSON (Railway needs structured logs).
 export function devTransport(nodeEnv: Env['NODE_ENV']): TransportSingleOptions | undefined {
-  return nodeEnv === 'development' ? { target: 'pino-pretty' } : undefined;
+  if (nodeEnv !== 'development') return undefined;
+  // The request line already says method, url, status and time in its message.
+  return { target: 'pino-pretty', options: { ignore: 'pid,hostname,req,res,responseTime' } };
 }
 
 // pino rejects `transport` combined with an explicit destination, so a destination means plain JSON.

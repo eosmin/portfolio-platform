@@ -3,5 +3,5 @@ import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 
 createApp().listen(env.API_PORT, () => {
-  logger.info({ port: env.API_PORT }, 'api listening');
+  logger.info({ port: env.API_PORT }, `api listening on :${env.API_PORT}`);
 });

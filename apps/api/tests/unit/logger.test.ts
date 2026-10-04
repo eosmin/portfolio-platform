@@ -26,7 +26,7 @@ describe('createLogger', () => {
   });
 
   it('uses pino-pretty only in development', () => {
-    expect(devTransport('development')).toEqual({ target: 'pino-pretty' });
+    expect(devTransport('development')).toMatchObject({ target: 'pino-pretty' });
     expect(devTransport('test')).toBeUndefined();
     expect(devTransport('production')).toBeUndefined();
   });
