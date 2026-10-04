@@ -1140,7 +1140,9 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** `/docs` renders Swagger UI in a browser under its route-scoped CSP (no console CSP errors) while every other route keeps the strict CSP; `/openapi.json` returns the document.
 30. `prom-client` metrics + `/metrics` endpoint guarded by `METRICS_TOKEN` (§11.4).
    - **Done when:** `GET /metrics` → 401 without the token and Prometheus text with it; the cache-hit counter increments only on a miss; `/readyz` returns only `ok`/`unavailable`.
-31. Commit: `feat(api): OpenAPI docs and Prometheus metrics`.
+30a. Graceful shutdown in `src/main.ts`: on `SIGTERM`/`SIGINT` stop accepting connections (`server.close()`), then close the pg `Pool` and `redis.quit()`, with a forced-exit timeout. Railway sends `SIGTERM` on every deploy.
+   - **Done when:** a unit/integration test shows in-flight requests finish and the DB and Redis clients close on `SIGTERM`; the process exits 0.
+31. Commit: `feat(api): OpenAPI docs, Prometheus metrics and graceful shutdown`.
    - **Done when:** merged to `main`.
 
 ### Phase 8 — apps/site skeleton + tooling

@@ -107,6 +107,8 @@
 
 - 2026-10-04: `pino-pretty` 13.1.3 added as dev-only transport (owner request); TDD §2.3 updated. Unit-test `DATABASE_URL` is `127.0.0.1:1` so a stray DB call fails fast; integration tests start their own containers.
 
+- 2026-10-04: graceful shutdown (`SIGTERM`/`SIGINT`: close server, pg Pool, Redis) is deferred to Phase 7 as step 30a, once `main.ts` owns real connections; `^C` currently shows a harmless `ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL` from pnpm.
+
 ## Blockers / open questions
 
 - (none)
