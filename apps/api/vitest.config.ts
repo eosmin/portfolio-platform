@@ -15,6 +15,7 @@ export default defineConfig({
       GITHUB_USERNAME: 'test-user',
       CORS_ORIGIN: 'http://localhost:3000',
       IP_HASH_SALT: 'test-ip-hash-salt-16',
+      METRICS_TOKEN: 'test-metrics-token-16',
     },
     coverage: {
       provider: 'v8',

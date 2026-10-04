@@ -567,7 +567,7 @@ portfolio-platform/
 │   │   │   ├── main.ts               # entrypoint: loads env, createApp(), listen(API_PORT)
 │   │   │   ├── config/
 │   │   │   │   ├── env.ts            # Zod-validated process.env
-│   │   │   │   ├── logger.ts         # pino + pino-http
+│   │   │   │   ├── logger.ts         # pino logger singleton
 │   │   │   │   └── openapi.ts        # zod-to-openapi registry
 │   │   │   ├── db/
 │   │   │   │   ├── index.ts          # Pool + drizzle(pool, { schema }) singleton, `Database` type
@@ -591,6 +591,7 @@ portfolio-platform/
 │   │   │   ├── lib/
 │   │   │   │   └── redis.ts          # ioredis singleton + helpers
 │   │   │   ├── middleware/
+│   │   │   │   ├── request-logger.ts # pino-http access log (skips /healthz, /readyz)
 │   │   │   │   ├── cors.ts
 │   │   │   │   ├── helmet.ts
 │   │   │   │   ├── rate-limit.ts
@@ -946,7 +947,7 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 | GET | `/docs` | public (Swagger UI) — served with its own CSP, see below |
 | GET | `/openapi.json` | public |
 
-- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required when `NODE_ENV=production`** (Zod refinement) and optional in development. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
+- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required in every environment** (Zod `z.string().min(16)`), so the api refuses to start without it and `/metrics` can never be open; `.env.example` ships a placeholder. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
 - `/docs` is intentionally public (it is part of the portfolio). `swagger-ui-express` needs a more permissive CSP than the strict policy applied everywhere else, so `routes/docs.ts` mounts it with a route-scoped helmet CSP override that allows only what Swagger UI requires (confirm the exact directives against the `swagger-ui-express` 5 docs via Context7). The strict CSP stays on every other route.
 
 ### 11.5 Error envelope
@@ -1085,7 +1086,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 8. `package.json` (with `db:*` scripts), `tsconfig`, `eslint.config.mjs`, `vitest.config.ts`.
    - **Done when:** `pnpm --filter @portfolio/api typecheck` and `lint` pass on the empty skeleton; `package.json` has `db:generate`, `db:migrate`, `db:studio`, `db:seed` and **no** `db:push`; both TypeScript aliases (§2.7.12) are present.
 9. `src/config/env.ts` (Zod), `src/config/logger.ts`.
-   - **Done when:** `env.ts` rejects a missing/invalid variable at startup with a Zod error (unit-tested), requires `METRICS_TOKEN` only when `NODE_ENV=production`, and never prints secrets; the logger redacts `authorization`.
+   - **Done when:** `env.ts` rejects a missing/invalid variable at startup with a Zod error (unit-tested), requires `METRICS_TOKEN` (min 16 chars) in every environment, and never prints secrets; the logger redacts `authorization`.
 10. `drizzle.config.ts` (drizzle-kit, `dialect: 'postgresql'`).
    - **Done when:** `pnpm --filter @portfolio/api exec drizzle-kit --version` runs and `drizzle.config.ts` throws a clear error when `DATABASE_URL` is unset.
 11. `src/app.ts` (`createApp()` with `/healthz`) and `src/main.ts` (`listen`).
@@ -1113,11 +1114,11 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** integration tests for db + redis pass against Testcontainers; merged to `main`.
 
 ### Phase 4 — apps/api middleware
-21. `cors`, `helmet`, `rate-limit`, `auth-jwt`, `metrics-auth`, `cache` (Redis), `error-handler`.
-   - **Done when:** each middleware has unit tests: CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
+21. `request-logger` (pino-http), `cors`, `helmet`, `rate-limit`, `auth-jwt`, `metrics-auth`, `cache` (Redis), `error-handler`.
+   - **Done when:** each middleware has unit tests: request logger logs one line per request through the shared pino `logger`, logs no request or response headers (cookies, authorization) and skips `/healthz` and `/readyz`; CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
 22. Tests.
    - **Done when:** `pnpm turbo run lint typecheck test --filter=@portfolio/api` green.
-23. Commit: `feat(api): middleware (cors, helmet, rate-limit, jwt, metrics-auth, redis-cache, errors)`.
+23. Commit: `feat(api): middleware (request-logger, cors, helmet, rate-limit, jwt, metrics-auth, redis-cache, errors)`.
    - **Done when:** merged to `main`.
 
 ### Phase 5 — apps/api modules (one per commit)
@@ -1139,7 +1140,9 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** `/docs` renders Swagger UI in a browser under its route-scoped CSP (no console CSP errors) while every other route keeps the strict CSP; `/openapi.json` returns the document.
 30. `prom-client` metrics + `/metrics` endpoint guarded by `METRICS_TOKEN` (§11.4).
    - **Done when:** `GET /metrics` → 401 without the token and Prometheus text with it; the cache-hit counter increments only on a miss; `/readyz` returns only `ok`/`unavailable`.
-31. Commit: `feat(api): OpenAPI docs and Prometheus metrics`.
+30a. Graceful shutdown in `src/main.ts`: on `SIGTERM`/`SIGINT` stop accepting connections (`server.close()`), then close the pg `Pool` and `redis.quit()`, with a forced-exit timeout. Railway sends `SIGTERM` on every deploy.
+   - **Done when:** a unit/integration test shows in-flight requests finish and the DB and Redis clients close on `SIGTERM`; the process exits 0.
+31. Commit: `feat(api): OpenAPI docs, Prometheus metrics and graceful shutdown`.
    - **Done when:** merged to `main`.
 
 ### Phase 8 — apps/site skeleton + tooling

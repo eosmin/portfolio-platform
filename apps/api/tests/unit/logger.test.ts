@@ -25,8 +25,14 @@ describe('createLogger', () => {
     expect(output).toContain('[Redacted]');
   });
 
+  it('writes the level as a label outside development', () => {
+    const { lines, stream } = capture();
+    createLogger('info', stream).info('hello');
+    expect(JSON.parse(lines.join('')) as unknown).toMatchObject({ level: 'info', msg: 'hello' });
+  });
+
   it('uses pino-pretty only in development', () => {
-    expect(devTransport('development')).toEqual({ target: 'pino-pretty' });
+    expect(devTransport('development')).toMatchObject({ target: 'pino-pretty' });
     expect(devTransport('test')).toBeUndefined();
     expect(devTransport('production')).toBeUndefined();
   });
