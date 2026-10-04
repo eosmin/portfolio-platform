@@ -23,6 +23,8 @@ describe('parseEnv', () => {
     expect(env.LOG_LEVEL).toBe('info');
     expect(env.RATE_LIMIT_CONTACT_PER_HOUR).toBe(5);
     expect(env.RATE_LIMIT_ANALYTICS_PER_MINUTE).toBe(60);
+    expect(env.RATE_LIMIT_LOGIN_PER_15_MIN).toBe(10);
+    expect(env.RATE_LIMIT_PUBLIC_READ_PER_MINUTE).toBe(120);
   });
 
   it('defaults JWT_EXPIRES_IN to 24h and rejects a value durationToSeconds cannot convert', () => {

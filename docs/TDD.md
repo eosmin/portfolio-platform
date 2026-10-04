@@ -614,8 +614,8 @@ portfolio-platform/
 │   │   │   │   ├── analytics/
 │   │   │   │   └── auth/             # admin login
 │   │   │   ├── admin/                # JWT-protected sub-app
-│   │   │   │   ├── router.ts
-│   │   │   │   └── modules/          # write endpoints reusing services
+│   │   │   │   ├── router.ts         # login + JWT guard + one CRUD router per resource, GET /contact
+│   │   │   │   └── crud-router.ts    # createCrudRouter: POST/PATCH/DELETE reusing the services, invalidates the public cache
 │   │   │   ├── routes/
 │   │   │   │   ├── index.ts          # mounts /v1/* (public routers + admin router at /v1/admin)
 │   │   │   │   └── docs.ts           # mounts /docs and /openapi.json
@@ -1215,7 +1215,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** merged to `main`.
 
 ### Phase 14 — Deployment
-55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files.
+55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `RATE_LIMIT_LOGIN_PER_15_MIN`, `RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files.
    - **Done when:** the Railway api is reachable over HTTPS, the migrator ran as the pre-deploy step, `/healthz` is 200, `/metrics` is 401 without the token, and no secret is committed.
 56. **site → Vercel**: connect repo, set `NEXT_PUBLIC_API_BASE_URL` (and `API_BASE_URL`) to the Railway api URL **including the `/v1` suffix**. Cache lifetimes come from the `cacheLife` profiles in `next.config.ts`; nothing to configure per page. The api must be deployed (and seeded) before the first Vercel build (§2.7.2).
    - **Done when:** the Vercel site builds against the live api, serves the pages, and the contact form works cross-origin (CORS accepts only the Vercel origin).
@@ -1318,6 +1318,8 @@ GITHUB_USERNAME=your-handle
 CORS_ORIGIN=http://localhost:3000
 RATE_LIMIT_CONTACT_PER_HOUR=5
 RATE_LIMIT_ANALYTICS_PER_MINUTE=60
+RATE_LIMIT_LOGIN_PER_15_MIN=10      # admin login attempts per IP per 15 min
+RATE_LIMIT_PUBLIC_READ_PER_MINUTE=120 # public GET requests per IP per minute
 LOG_LEVEL=info
 IP_HASH_SALT=changeme-long-random
 # Bearer token required by GET /metrics. Mandatory when NODE_ENV=production.

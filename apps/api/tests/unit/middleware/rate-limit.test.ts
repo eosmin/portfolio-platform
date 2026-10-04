@@ -20,4 +20,11 @@ describe('rate limiter', () => {
     expect((await request(app).get('/').set('X-Forwarded-For', '203.0.113.2')).status).toBe(200);
     expect((await request(app).get('/').set('X-Forwarded-For', '203.0.113.1')).status).toBe(429);
   });
+
+  it('with skipSuccessfulRequests, 2xx responses never consume the budget', async () => {
+    const app = appWith(
+      createRateLimiter({ windowMs: 60_000, limit: 1, skipSuccessfulRequests: true }),
+    );
+    for (let i = 0; i < 3; i += 1) expect((await request(app).get('/')).status).toBe(200);
+  });
 });

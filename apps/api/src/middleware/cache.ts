@@ -64,3 +64,23 @@ export function cacheResponse(
     next();
   };
 }
+
+type InvalidationStore = Pick<Redis, 'scanStream' | 'del'>;
+
+/**
+ * Deletes every cached response under `basePath` (list, detail and every query variant).
+ * Failures are logged, never thrown: the write already succeeded and the TTL bounds the staleness.
+ */
+export async function invalidateCache(
+  basePath: string,
+  store: InvalidationStore = redis,
+): Promise<void> {
+  try {
+    const stream = store.scanStream({ match: `${CACHE_KEY_PREFIX}${basePath}*`, count: 100 });
+    for await (const keys of stream) {
+      if (Array.isArray(keys) && keys.length > 0) await store.del(...(keys as string[]));
+    }
+  } catch (err) {
+    logger.warn({ err, basePath }, 'cache invalidation failed');
+  }
+}

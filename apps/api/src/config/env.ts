@@ -26,6 +26,8 @@ export const envSchema = z.object({
   CORS_ORIGIN: z.url(),
   RATE_LIMIT_CONTACT_PER_HOUR: positiveInt(5),
   RATE_LIMIT_ANALYTICS_PER_MINUTE: positiveInt(60),
+  RATE_LIMIT_LOGIN_PER_15_MIN: positiveInt(10),
+  RATE_LIMIT_PUBLIC_READ_PER_MINUTE: positiveInt(120),
   IP_HASH_SALT: z.string().min(16),
   METRICS_TOKEN: z.string().min(16),
 });
