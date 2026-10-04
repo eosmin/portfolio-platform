@@ -25,6 +25,14 @@ describe('parseEnv', () => {
     expect(env.RATE_LIMIT_ANALYTICS_PER_MINUTE).toBe(60);
   });
 
+  it('defaults JWT_EXPIRES_IN to 24h and rejects a value durationToSeconds cannot convert', () => {
+    expect(parseEnv(valid).JWT_EXPIRES_IN).toBe('24h');
+    expect(parseEnv({ ...valid, JWT_EXPIRES_IN: '15m' }).JWT_EXPIRES_IN).toBe('15m');
+    for (const JWT_EXPIRES_IN of ['tomorrow', '0h', '0s']) {
+      expect(() => parseEnv({ ...valid, JWT_EXPIRES_IN })).toThrow(/JWT_EXPIRES_IN/);
+    }
+  });
+
   it('rejects a missing variable with a ZodError naming it', () => {
     const rest: Record<string, string> = { ...valid };
     delete rest.DATABASE_URL;
