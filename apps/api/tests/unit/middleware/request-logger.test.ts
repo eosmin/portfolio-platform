@@ -32,8 +32,8 @@ describe('request logger', () => {
     await request(app).get('/v1/skills');
     expect(lines()).toHaveLength(1);
     expect(lines()[0]).toMatchObject({
-      msg: expect.stringMatching(/^GET \/v1\/skills 200 \d+ms$/) as string,
-      level: 30,
+      msg: 'request completed',
+      level: 'info',
       req: { method: 'GET', url: '/v1/skills' },
       res: { statusCode: 200 },
     });

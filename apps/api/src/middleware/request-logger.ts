@@ -24,8 +24,6 @@ export function createRequestLogger(log: Logger = logger): HttpLogger {
     // 4xx are the client's mistake, 5xx ours.
     customLogLevel: (_req, res, err) =>
       err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
-    customSuccessMessage: (req, res, ms) => `${req.method} ${req.url} ${res.statusCode} ${ms}ms`,
-    customErrorMessage: (req, res, _err) => `${req.method} ${req.url} ${res.statusCode} failed`,
     autoLogging: { ignore: (req) => SILENT_PATHS.has(req.url ?? '') },
   });
 }
