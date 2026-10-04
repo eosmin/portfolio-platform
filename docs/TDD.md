@@ -947,7 +947,7 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 | GET | `/docs` | public (Swagger UI) — served with its own CSP, see below |
 | GET | `/openapi.json` | public |
 
-- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required when `NODE_ENV=production`** (Zod refinement) and optional in development. When it is unset (development) the guard rejects every request, so `/metrics` is never open. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
+- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required in every environment** (Zod `z.string().min(16)`), so the api refuses to start without it and `/metrics` can never be open; `.env.example` ships a placeholder. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
 - `/docs` is intentionally public (it is part of the portfolio). `swagger-ui-express` needs a more permissive CSP than the strict policy applied everywhere else, so `routes/docs.ts` mounts it with a route-scoped helmet CSP override that allows only what Swagger UI requires (confirm the exact directives against the `swagger-ui-express` 5 docs via Context7). The strict CSP stays on every other route.
 
 ### 11.5 Error envelope
@@ -1086,7 +1086,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 8. `package.json` (with `db:*` scripts), `tsconfig`, `eslint.config.mjs`, `vitest.config.ts`.
    - **Done when:** `pnpm --filter @portfolio/api typecheck` and `lint` pass on the empty skeleton; `package.json` has `db:generate`, `db:migrate`, `db:studio`, `db:seed` and **no** `db:push`; both TypeScript aliases (§2.7.12) are present.
 9. `src/config/env.ts` (Zod), `src/config/logger.ts`.
-   - **Done when:** `env.ts` rejects a missing/invalid variable at startup with a Zod error (unit-tested), requires `METRICS_TOKEN` only when `NODE_ENV=production`, and never prints secrets; the logger redacts `authorization`.
+   - **Done when:** `env.ts` rejects a missing/invalid variable at startup with a Zod error (unit-tested), requires `METRICS_TOKEN` (min 16 chars) in every environment, and never prints secrets; the logger redacts `authorization`.
 10. `drizzle.config.ts` (drizzle-kit, `dialect: 'postgresql'`).
    - **Done when:** `pnpm --filter @portfolio/api exec drizzle-kit --version` runs and `drizzle.config.ts` throws a clear error when `DATABASE_URL` is unset.
 11. `src/app.ts` (`createApp()` with `/healthz`) and `src/main.ts` (`listen`).

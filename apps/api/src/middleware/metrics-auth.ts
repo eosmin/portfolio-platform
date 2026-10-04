@@ -7,13 +7,11 @@ import { bearerToken } from '../utils/bearer.js';
 // Hashing first gives timingSafeEqual equal-length buffers whatever the caller sends.
 const digest = (value: string): Buffer => createHash('sha256').update(value).digest();
 
-/** Bearer guard for /metrics. Without a configured token (development only) the route stays closed. */
-export function createMetricsAuth(
-  expected: string | undefined = env.METRICS_TOKEN,
-): RequestHandler {
+/** Bearer guard for /metrics. */
+export function createMetricsAuth(expected: string = env.METRICS_TOKEN): RequestHandler {
   return (req, _res, next) => {
     const token = bearerToken(req);
-    if (!expected || !token || !timingSafeEqual(digest(token), digest(expected))) {
+    if (!token || !timingSafeEqual(digest(token), digest(expected))) {
       throw new AppError(401, 'UNAUTHORIZED', 'Invalid or missing metrics token');
     }
     next();

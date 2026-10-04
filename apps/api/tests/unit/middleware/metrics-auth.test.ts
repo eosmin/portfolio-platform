@@ -4,7 +4,6 @@ import { createMetricsAuth } from '../../../src/middleware/metrics-auth.js';
 import { appWith } from '../../helpers/app.js';
 
 const app = appWith(createMetricsAuth('s3cret-metrics-token'));
-const closedApp = appWith(createMetricsAuth(undefined));
 
 describe('metrics-auth', () => {
   it('accepts the exact bearer token', async () => {
@@ -23,10 +22,5 @@ describe('metrics-auth', () => {
     const res = await (header ? req.set('Authorization', header) : req);
     expect(res.status).toBe(401);
     expect(res.body).toMatchObject({ code: 'UNAUTHORIZED' });
-  });
-
-  it('stays closed when no token is configured', async () => {
-    const res = await request(closedApp).get('/').set('Authorization', 'Bearer anything');
-    expect(res.status).toBe(401);
   });
 });

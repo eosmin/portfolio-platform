@@ -12,6 +12,7 @@ const valid = {
   GITHUB_USERNAME: 'me',
   CORS_ORIGIN: 'http://localhost:3000',
   IP_HASH_SALT: 'a-salt-of-sufficient-length',
+  METRICS_TOKEN: 'a-metrics-token-long-enough',
 };
 
 describe('parseEnv', () => {
@@ -36,12 +37,13 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...valid, CORS_ORIGIN: 'not-a-url' })).toThrow(ZodError);
   });
 
-  it('requires METRICS_TOKEN only in production', () => {
-    expect(parseEnv({ ...valid, NODE_ENV: 'development' }).METRICS_TOKEN).toBeUndefined();
-    expect(() => parseEnv({ ...valid, NODE_ENV: 'production' })).toThrow(/METRICS_TOKEN/);
-    expect(parseEnv({ ...valid, NODE_ENV: 'production', METRICS_TOKEN: 't' }).METRICS_TOKEN).toBe(
-      't',
-    );
+  it('requires METRICS_TOKEN in every environment, at least 16 characters', () => {
+    const rest: Record<string, string> = { ...valid };
+    delete rest.METRICS_TOKEN;
+    for (const NODE_ENV of ['development', 'test', 'production']) {
+      expect(() => parseEnv({ ...rest, NODE_ENV })).toThrow(/METRICS_TOKEN/);
+    }
+    expect(() => parseEnv({ ...valid, METRICS_TOKEN: 'short' })).toThrow(/METRICS_TOKEN/);
   });
 
   it('never echoes secret values in the error', () => {
