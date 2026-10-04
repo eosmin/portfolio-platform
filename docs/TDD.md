@@ -947,7 +947,7 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 | GET | `/docs` | public (Swagger UI) — served with its own CSP, see below |
 | GET | `/openapi.json` | public |
 
-- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required when `NODE_ENV=production`** (Zod refinement) and optional in development. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
+- `/metrics` exposes service internals (routes, latencies, memory), and Railway publishes the api on the internet, so it requires `METRICS_TOKEN`. The token is compared with `crypto.timingSafeEqual`. `env.ts` makes `METRICS_TOKEN` **required when `NODE_ENV=production`** (Zod refinement) and optional in development. When it is unset (development) the guard rejects every request, so `/metrics` is never open. Prometheus scrapes it with `authorization: { type: Bearer, credentials: <token> }`.
 - `/docs` is intentionally public (it is part of the portfolio). `swagger-ui-express` needs a more permissive CSP than the strict policy applied everywhere else, so `routes/docs.ts` mounts it with a route-scoped helmet CSP override that allows only what Swagger UI requires (confirm the exact directives against the `swagger-ui-express` 5 docs via Context7). The strict CSP stays on every other route.
 
 ### 11.5 Error envelope
