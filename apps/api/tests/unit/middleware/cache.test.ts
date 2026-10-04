@@ -23,10 +23,11 @@ function appCaching(
   store: FakeStore,
   ttl: number,
   status = 200,
+  queryParams: readonly string[] = ['page'],
 ): { app: express.Express; hits: () => number } {
   let handlerCalls = 0;
   const app = express();
-  app.get('/v1/skills', cacheResponse(ttl, store), (_req, res) => {
+  app.get('/v1/skills', cacheResponse(ttl, { store, queryParams }), (_req, res) => {
     handlerCalls += 1;
     res.status(status).json({ calls: handlerCalls });
   });
@@ -63,6 +64,17 @@ describe('cache middleware', () => {
     await request(app).get('/v1/skills?page=1');
     await request(app).get('/v1/skills?page=2');
     expect(hits()).toBe(2);
+  });
+
+  it('ignores query params outside the whitelist, so they cannot mint cache entries', async () => {
+    const store = fakeStore();
+    const { app, hits } = appCaching(store, CacheTtl.fiveMinutes);
+    await request(app).get('/v1/skills?page=1&_=a');
+    const hit = await request(app).get('/v1/skills?_=b&page=1&other=c');
+    expect(hit.headers['x-cache']).toBe('HIT');
+    expect(hits()).toBe(1);
+    expect(store.set).toHaveBeenCalledTimes(1);
+    expect(store.set.mock.calls[0]?.[0]).toBe('cache:/v1/skills?page=1');
   });
 
   it('does not cache non-200 responses', async () => {
