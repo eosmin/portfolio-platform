@@ -15,7 +15,10 @@ export const envSchema = z.object({
   DATABASE_URL: z.url(),
   REDIS_URL: z.url(),
   JWT_SECRET: z.string().min(16),
-  JWT_EXPIRES_IN: z.string().min(1).default('24h'),
+  JWT_EXPIRES_IN: z
+    .string()
+    .regex(/^[1-9]\d*[smhd]$/, 'must be a number followed by s, m, h or d (e.g. 24h)')
+    .default('24h'),
   ADMIN_EMAIL: z.email(),
   ADMIN_PASSWORD_HASH: z.string().min(1),
   GITHUB_TOKEN: z.string().min(1),

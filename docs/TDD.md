@@ -565,6 +565,7 @@ portfolio-platform/
 │   │   ├── src/
 │   │   │   ├── app.ts                # createApp(): Express app factory (no listen; Supertest imports it)
 │   │   │   ├── main.ts               # entrypoint: loads env, createApp(), listen(API_PORT)
+│   │   │   ├── services.ts           # composition root: createServices(db) wires repos, clients and config into the services
 │   │   │   ├── config/
 │   │   │   │   ├── env.ts            # Zod-validated process.env
 │   │   │   │   ├── logger.ts         # pino logger singleton
@@ -620,6 +621,11 @@ portfolio-platform/
 │   │   │   │   └── docs.ts           # mounts /docs and /openapi.json
 │   │   │   └── utils/
 │   │   │       ├── hash.ts           # salted SHA-256
+│   │   │       ├── app-error.ts      # AppError(status, code, detail) → §11.5 envelope
+│   │   │       ├── crud-service.ts   # createCrudService(repo, errors): shared list/create/update/remove for entities whose row is the API shape
+│   │   │       ├── list-router.ts    # createListRouter(list, ttl): cached GET / for the plain-array resources
+│   │   │       ├── pg-error.ts       # isUniqueViolation / isCheckViolation (walk drizzle's error `cause`)
+│   │   │       ├── duration.ts       # durationToSeconds('24h') for JWT_EXPIRES_IN
 │   │   │       └── github-proxy.ts   # GitHub REST client used by modules/github/service.ts
 │   │   └── tests/
 │   │       ├── unit/
@@ -913,7 +919,7 @@ Base path for the **whole API** (public and admin): `/v1` (versioned). Only the 
 | GET | `/v1/github/stats` | 10 min |
 | GET | `/v1/analytics/views` | 1 min |
 
-**Pagination contract** (only `projects` and `blog`; every other list returns a plain array): query `page` (integer ≥ 1, default 1) and `pageSize` (integer 1–50, default 12, constant in `packages/shared/src/constants`). The response is `{ "items": [...], "page": 1, "pageSize": 12, "total": 37 }` (`paginatedSchema(itemSchema)` in `packages/shared`). `featured=true` filters projects to `featured = true`. Query values are flat (Express 5 `simple` query parser, §2.7.4). Cache keys include the query string.
+**Pagination contract** (only `projects` and `blog`; every other list returns a plain array): query `page` (integer ≥ 1, default 1) and `pageSize` (integer 1–50, default 12, constant in `packages/shared/src/constants`). The response is `{ "items": [...], "page": 1, "pageSize": 12, "total": 37 }` (`paginatedSchema(itemSchema)` in `packages/shared`). `featured=true` filters projects to `featured = true`. Query values are flat (Express 5 `simple` query parser, §2.7.4). Cache keys are the path plus **only the whitelisted query params** of that route (`page`, `pageSize` and, on projects, `featured`; `cacheResponse(ttl, { queryParams })`), so an arbitrary `?_=<random>` cannot mint Redis entries. `featured` accepts exactly `true` or `false`.
 
 ### 11.2 Public write
 | Method | Path | Notes |
@@ -969,8 +975,10 @@ All are defined as Zod schemas in `packages/shared/src/schemas/` (source of trut
   "topLanguages": [{ "name": "TypeScript", "repoCount": 7 }]
 }
 ```
-- `memberSince` is the account's `created_at` as a date; `lastPushedAt` is the most recent `pushed_at` across the user's public repos (`null` if there are none); `topLanguages` counts public repos by their primary language, descending, top 5.
+- `memberSince` is the account's `created_at` as a date (`null` only in the degraded payload served when GitHub is unreachable and nothing was ever cached; the site hides the field then); `lastPushedAt` is the most recent `pushed_at` across the user's public repos (`null` if there are none); `topLanguages` counts public repos by their primary language, descending, top 5.
 - Deliberately **no** `followers` or `totalStars` (vanity metrics that add nothing to the portfolio). If they become useful later, adding them is a small schema + TDD change.
+- **Degradation:** `memberSince` is `null` (and `publicRepos` 0, `lastPushedAt` null, `topLanguages` empty) only in the payload served when GitHub is unreachable and nothing was ever cached; the site hides the field then. GitHub failures are never answered with an error.
+- **Caching lives in `modules/github/service.ts`, not in `cacheResponse`:** a fresh copy under `github:stats` (10 min) plus a `github:stats:last-good` copy (7 days) served when a refresh fails; a degraded answer is never written to the 10-minute key. A failure sets a 30 s `github:stats:failed` marker during which GitHub is not called again, and concurrent requests share one refresh (no stampede).
 - Built from two GitHub REST calls (`/users/:username` and the user's public repos), cached 10 min (§11.1).
 
 **`GET /v1/analytics/views`** → `200` array of `{ "page": "/blog/my-post", "views": 42 }`.
@@ -1125,11 +1133,14 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 24. `projects`, `blog`, `skills`, `languages`, `certifications`, `experience`, `profile`, `social-links`, `analytics`, `auth` (admin login), `github` (`utils/github-proxy.ts` + router + service, Redis cache + token, no repo), `contact` (rate-limited, ipHash).
    - **Done when:** each module exposes the §11 routes for its resource (public reads under `/v1`, no admin routes yet) and no module imports another module's repo; `contact` stores only `ipHash`/`userAgentHash`; `github` degrades gracefully (cached/empty payload) when GitHub fails.
 25. Each: router + service + repo + tests (Supertest + Testcontainers `postgres:18` / `redis:8.10.2`). Services expose the full CRUD for their entity; the public router exposes only the reads (§11.1) and Phase 6 reuses the same services for the admin writes.
+   - **Also in this phase:** `src/services.ts` (composition root, `createServices(db)`) and `src/routes/index.ts` (`createV1Router(services)` mounts the public routers under `/v1` from `createApp()`); the auth router is built here but mounted at `/v1/admin/auth` by the Phase 6 admin router. Shared helpers: `utils/crud-service.ts`, `utils/list-router.ts`, `utils/pg-error.ts`, `utils/duration.ts`; test helper `tests/helpers/infra.ts` (Testcontainers postgres:18 + redis:8.10.2 per test file).
    - **Done when:** every module has Supertest integration tests on Testcontainers (happy path, 404 envelope, validation 400); the `github` cache-hit test shows no second outbound call (MSW); responses parse with the shared Zod schemas; one commit per module.
 
 ### Phase 6 — apps/api admin
 26. `src/admin/router.ts` (JWT guard, mounts write endpoints).
    - **Done when:** every `/v1/admin/*` route returns 401 without a valid token and 2xx/4xx correctly with one; each successful write `DEL`s the affected Redis keys (tested); `POST /v1/admin/certifications` works for an issuer that is not in the seed with no code change.
+26a. Rate limits for `POST /v1/admin/auth/login` (brute force) and the public GET routes (cache-key and origin abuse): two more `createRateLimiter` instances in `middleware/rate-limit.ts`, with env-configurable limits (proposed defaults: login 10 per 15 min per IP, public reads 120 per minute per IP; confirm with the owner at the start of the phase) added to `env.ts`, `.env.example` and §16.
+   - **Done when:** the (limit+1)-th login attempt and public read from one IP answers `429` with the `RATE_LIMITED` envelope (tested); `/healthz`, `/readyz` and `/metrics` stay unthrottled; the limiter runs before the cache middleware and body parsing.
 27. Commit: `feat(api): JWT-protected admin write endpoints`.
    - **Done when:** merged to `main`.
 
@@ -1297,7 +1308,7 @@ NODE_ENV=development
 DATABASE_URL=postgresql://portfolio:changeme@localhost:5432/portfolio
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=changeme-long-random-string
-JWT_EXPIRES_IN=24h
+JWT_EXPIRES_IN=24h                   # positive integer + s|m|h|d (e.g. 15m, 24h); 0 is rejected
 ADMIN_EMAIL=admin@example.com
 # Single quotes are required: they stop both docker compose and shell tools from expanding the `$` signs of the bcrypt hash.
 ADMIN_PASSWORD_HASH='$2b$12$replaceWithBcryptHash'

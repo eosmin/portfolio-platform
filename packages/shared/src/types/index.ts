@@ -27,7 +27,12 @@ import type {
   profileDetailSchema,
   profileDetailUpdateSchema,
 } from '../schemas/profile.js';
-import type { projectInputSchema, projectSchema, projectUpdateSchema } from '../schemas/project.js';
+import type {
+  projectInputSchema,
+  projectListQuerySchema,
+  projectSchema,
+  projectUpdateSchema,
+} from '../schemas/project.js';
 import type { skillInputSchema, skillSchema, skillUpdateSchema } from '../schemas/skill.js';
 import type {
   socialLinkInputSchema,
@@ -39,6 +44,7 @@ import type {
 export type Project = z.infer<typeof projectSchema>;
 export type ProjectInput = z.infer<typeof projectInputSchema>;
 export type ProjectUpdate = z.infer<typeof projectUpdateSchema>;
+export type ProjectListQuery = z.infer<typeof projectListQuerySchema>;
 
 export type BlogPost = z.infer<typeof blogPostSchema>;
 export type BlogPostInput = z.infer<typeof blogPostInputSchema>;

@@ -6,7 +6,7 @@ export const githubStatsSchema = z
     username: shortTextSchema,
     profileUrl: httpUrlSchema,
     publicRepos: z.number().int().min(0),
-    memberSince: isoDateSchema,
+    memberSince: isoDateSchema.nullable(),
     lastPushedAt: isoDateTimeSchema.nullable(),
     topLanguages: z
       .array(z.object({ name: shortTextSchema, repoCount: z.number().int().min(1) }))
