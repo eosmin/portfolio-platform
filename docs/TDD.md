@@ -567,7 +567,7 @@ portfolio-platform/
 │   │   │   ├── main.ts               # entrypoint: loads env, createApp(), listen(API_PORT)
 │   │   │   ├── config/
 │   │   │   │   ├── env.ts            # Zod-validated process.env
-│   │   │   │   ├── logger.ts         # pino + pino-http
+│   │   │   │   ├── logger.ts         # pino logger singleton
 │   │   │   │   └── openapi.ts        # zod-to-openapi registry
 │   │   │   ├── db/
 │   │   │   │   ├── index.ts          # Pool + drizzle(pool, { schema }) singleton, `Database` type
@@ -591,6 +591,7 @@ portfolio-platform/
 │   │   │   ├── lib/
 │   │   │   │   └── redis.ts          # ioredis singleton + helpers
 │   │   │   ├── middleware/
+│   │   │   │   ├── request-logger.ts # pino-http access log (skips /healthz, /readyz)
 │   │   │   │   ├── cors.ts
 │   │   │   │   ├── helmet.ts
 │   │   │   │   ├── rate-limit.ts
@@ -1113,11 +1114,11 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** integration tests for db + redis pass against Testcontainers; merged to `main`.
 
 ### Phase 4 — apps/api middleware
-21. `cors`, `helmet`, `rate-limit`, `auth-jwt`, `metrics-auth`, `cache` (Redis), `error-handler`.
-   - **Done when:** each middleware has unit tests: CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
+21. `request-logger` (pino-http), `cors`, `helmet`, `rate-limit`, `auth-jwt`, `metrics-auth`, `cache` (Redis), `error-handler`.
+   - **Done when:** each middleware has unit tests: request logger logs one line per request through the shared pino `logger`, redacts `authorization` and skips `/healthz` and `/readyz`; CORS allows only `CORS_ORIGIN`; helmet strict CSP active; rate limit blocks the (limit+1)-th request using `limit` + `ipKeyGenerator`; JWT rejects missing, tampered, wrong-algorithm and expired tokens; `metrics-auth` returns 401 without the exact Bearer token (timing-safe compare); cache middleware sets/reads Redis with the §11.1 TTLs; error handler returns the §11.5 envelope.
 22. Tests.
    - **Done when:** `pnpm turbo run lint typecheck test --filter=@portfolio/api` green.
-23. Commit: `feat(api): middleware (cors, helmet, rate-limit, jwt, metrics-auth, redis-cache, errors)`.
+23. Commit: `feat(api): middleware (request-logger, cors, helmet, rate-limit, jwt, metrics-auth, redis-cache, errors)`.
    - **Done when:** merged to `main`.
 
 ### Phase 5 — apps/api modules (one per commit)
