@@ -42,9 +42,11 @@ describe('createApp mounts the public /v1 routes', () => {
     expect(view.status).toBe(204);
   });
 
-  it('does not expose admin routes yet', async () => {
-    const res = await request(app).post('/v1/admin/auth/login').send({});
-    expect(res.status).toBe(404);
-    expect(errorSchema.parse(res.body).code).toBe('ROUTE_NOT_FOUND');
+  it('mounts the admin routes: login is open, everything else needs a token', async () => {
+    const login = await request(app).post('/v1/admin/auth/login').send({});
+    expect(login.status).toBe(400);
+    const guarded = await request(app).get('/v1/admin/contact');
+    expect(guarded.status).toBe(401);
+    expect(errorSchema.parse(guarded.body).code).toBe('UNAUTHORIZED');
   });
 });
