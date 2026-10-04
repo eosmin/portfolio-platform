@@ -7,6 +7,7 @@ import {
   slugSchema,
   tagsSchema,
 } from './common.js';
+import { paginationQuerySchema } from './pagination.js';
 
 export const projectSchema = z
   .object({
@@ -31,3 +32,12 @@ export const projectInputSchema = projectSchema
   .meta({ id: 'ProjectInput' });
 
 export const projectUpdateSchema = projectInputSchema.partial().meta({ id: 'ProjectUpdate' });
+
+export const projectListQuerySchema = paginationQuerySchema
+  .extend({
+    featured: z
+      .enum(['true', 'false'])
+      .transform((v) => v === 'true')
+      .optional(),
+  })
+  .meta({ id: 'ProjectListQuery' });

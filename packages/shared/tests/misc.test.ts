@@ -13,6 +13,7 @@ import {
   pageViewsSchema,
   paginatedSchema,
   paginationQuerySchema,
+  projectListQuerySchema,
   projectSchema,
   skillSchema,
   viewPageSchema,
@@ -99,6 +100,7 @@ describe('githubStatsSchema', () => {
   it('rejects negatives, bad dates and more than 5 languages', () => {
     expect(githubStatsSchema.safeParse({ ...stats, publicRepos: -1 }).success).toBe(false);
     expect(githubStatsSchema.safeParse({ ...stats, memberSince: 'long ago' }).success).toBe(false);
+    expect(githubStatsSchema.safeParse({ ...stats, memberSince: null }).success).toBe(true);
     const six = Array.from({ length: 6 }, (_, i) => ({ name: `L${i}`, repoCount: 1 }));
     expect(githubStatsSchema.safeParse({ ...stats, topLanguages: six }).success).toBe(false);
   });
@@ -139,6 +141,12 @@ describe('pagination', () => {
       false,
     );
     expect(paginationQuerySchema.safeParse({ page: '1.5' }).success).toBe(false);
+  });
+  it('projectListQuerySchema parses featured as a boolean and rejects other values', () => {
+    expect(projectListQuerySchema.parse({ featured: 'true' }).featured).toBe(true);
+    expect(projectListQuerySchema.parse({ featured: 'false' }).featured).toBe(false);
+    expect(projectListQuerySchema.parse({}).featured).toBeUndefined();
+    expect(projectListQuerySchema.safeParse({ featured: 'yes' }).success).toBe(false);
   });
   it('paginatedSchema wraps an item schema', () => {
     const schema = paginatedSchema(skillSchema);
