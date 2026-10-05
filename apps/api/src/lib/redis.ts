@@ -10,3 +10,14 @@ export const redis = new Redis(env.REDIS_URL, { lazyConnect: true });
 redis.on('error', (err: Error) => {
   logger.error({ err }, 'redis error');
 });
+
+/**
+ * Releases the client on shutdown. `quit()` only works on a ready connection: with `lazyConnect` it would
+ * open a socket just to close it, and while Redis is down it never resolves.
+ */
+export async function closeRedis(
+  client: Pick<Redis, 'status' | 'quit' | 'disconnect'> = redis,
+): Promise<void> {
+  if (client.status === 'ready') await client.quit();
+  else client.disconnect();
+}
