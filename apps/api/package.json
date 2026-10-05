@@ -21,6 +21,7 @@
     "db:seed": "tsx src/db/seed.ts"
   },
   "dependencies": {
+    "@asteasolutions/zod-to-openapi": "9.1.0",
     "@portfolio/shared": "workspace:*",
     "bcrypt": "6.0.0",
     "cors": "2.8.6",
