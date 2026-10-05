@@ -590,7 +590,10 @@ portfolio-platform/
 │   │   │   │       ├── page-view.ts
 │   │   │   │       └── admin-user.ts
 │   │   │   ├── lib/
-│   │   │   │   └── redis.ts          # ioredis singleton + helpers
+│   │   │   │   ├── redis.ts          # ioredis singleton + helpers
+│   │   │   │   ├── metrics.ts        # prom-client registry: default metrics, http duration histogram, cache lookup counter
+│   │   │   │   ├── readiness.ts      # createReadinessCheck: pings Postgres + Redis, 2 s timeout, result shared for 1 s
+│   │   │   │   └── shutdown.ts       # createShutdown: SIGTERM/SIGINT graceful close with forced-exit timer
 │   │   │   ├── middleware/
 │   │   │   │   ├── request-logger.ts # pino-http access log (skips /healthz, /readyz)
 │   │   │   │   ├── cors.ts
@@ -598,6 +601,7 @@ portfolio-platform/
 │   │   │   │   ├── rate-limit.ts
 │   │   │   │   ├── auth-jwt.ts
 │   │   │   │   ├── metrics-auth.ts   # Bearer METRICS_TOKEN guard for /metrics
+│   │   │   │   ├── http-metrics.ts   # request duration histogram labelled by route pattern
 │   │   │   │   ├── cache.ts          # response cache (Redis)
 │   │   │   │   └── error-handler.ts
 │   │   │   ├── modules/
@@ -618,6 +622,7 @@ portfolio-platform/
 │   │   │   │   └── crud-router.ts    # createCrudRouter: POST/PATCH/DELETE reusing the services, invalidates the public cache
 │   │   │   ├── routes/
 │   │   │   │   ├── index.ts          # mounts /v1/* (public routers + admin router at /v1/admin)
+│   │   │   │   ├── ops.ts            # /healthz, /readyz, /metrics
 │   │   │   │   └── docs.ts           # mounts /docs and /openapi.json
 │   │   │   └── utils/
 │   │   │       ├── hash.ts           # salted SHA-256
@@ -1150,7 +1155,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 29. `src/routes/docs.ts` (Swagger UI + `/openapi.json`).
    - **Done when:** `/docs` renders Swagger UI in a browser under its route-scoped CSP (no console CSP errors) while every other route keeps the strict CSP; `/openapi.json` returns the document.
 30. `prom-client` metrics + `/metrics` endpoint guarded by `METRICS_TOKEN` (§11.4).
-   - **Done when:** `GET /metrics` → 401 without the token and Prometheus text with it; the cache-hit counter increments only on a miss; `/readyz` returns only `ok`/`unavailable`.
+   - **Done when:** `GET /metrics` → 401 without the token and Prometheus text with it; `cache_lookups_total{result="hit"|"miss"|"error"}` increments the matching label once per cached-route lookup (`error` = Redis read failed); `/readyz` returns only `ok`/`unavailable`.
 30a. Graceful shutdown in `src/main.ts`: on `SIGTERM`/`SIGINT` stop accepting connections (`server.close()`), then close the pg `Pool` and `redis.quit()`, with a forced-exit timeout. Railway sends `SIGTERM` on every deploy.
    - **Done when:** a unit/integration test shows in-flight requests finish and the DB and Redis clients close on `SIGTERM`; the process exits 0.
 31. Commit: `feat(api): OpenAPI docs, Prometheus metrics and graceful shutdown`.
