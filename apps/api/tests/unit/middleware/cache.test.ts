@@ -1,6 +1,7 @@
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { metrics } from '../../../src/lib/metrics.js';
 import { cacheResponse, CacheTtl } from '../../../src/middleware/cache.js';
 
 interface FakeStore {
@@ -92,5 +93,35 @@ describe('cache middleware', () => {
     const res = await request(app).get('/v1/skills');
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ calls: 1 });
+  });
+
+  it('counts one lookup per request: a miss on the first call, a hit on the second', async () => {
+    const lookups = async (result: string): Promise<number> => {
+      const { values } = await metrics.cacheLookups.get();
+      return values.find((v) => v.labels.result === result)?.value ?? 0;
+    };
+    const { app } = appCaching(fakeStore(), CacheTtl.thirtyMinutes);
+    const [hits, misses] = [await lookups('hit'), await lookups('miss')];
+
+    await request(app).get('/v1/skills');
+    expect([await lookups('hit'), await lookups('miss')]).toEqual([hits, misses + 1]);
+
+    await request(app).get('/v1/skills');
+    expect([await lookups('hit'), await lookups('miss')]).toEqual([hits + 1, misses + 1]);
+  });
+
+  it('counts a failed Redis read as an error, not as a miss', async () => {
+    const lookups = async (result: string): Promise<number> => {
+      const { values } = await metrics.cacheLookups.get();
+      return values.find((v) => v.labels.result === result)?.value ?? 0;
+    };
+    const store = fakeStore();
+    store.get.mockRejectedValueOnce(new Error('redis down'));
+    const { app } = appCaching(store, CacheTtl.thirtyMinutes);
+    const [errors, misses] = [await lookups('error'), await lookups('miss')];
+
+    await request(app).get('/v1/skills');
+
+    expect([await lookups('error'), await lookups('miss')]).toEqual([errors + 1, misses]);
   });
 });

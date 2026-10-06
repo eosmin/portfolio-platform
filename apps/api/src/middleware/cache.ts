@@ -1,6 +1,7 @@
 import type { Request, RequestHandler } from 'express';
 import type { Redis } from 'ioredis';
 import { logger } from '../config/logger.js';
+import { metrics } from '../lib/metrics.js';
 import { redis } from '../lib/redis.js';
 
 /** Cache lifetimes of §11.1, in seconds. */
@@ -41,16 +42,21 @@ export function cacheResponse(
 ): RequestHandler {
   return async (req, res, next) => {
     const key = cacheKey(req, queryParams);
+    // A Redis outage must not look like ordinary misses on a hit-ratio dashboard.
+    let lookup: 'miss' | 'error' = 'miss';
     try {
       const cached = await store.get(key);
       if (cached !== null) {
+        metrics.cacheLookups.inc({ result: 'hit' });
         res.set('X-Cache', 'HIT').type('application/json').send(cached);
         return;
       }
     } catch (err) {
+      lookup = 'error';
       logger.warn({ err }, 'cache read failed');
     }
 
+    metrics.cacheLookups.inc({ result: lookup });
     res.set('X-Cache', 'MISS');
     const sendJson = res.json.bind(res);
     res.json = (body: unknown) => {
