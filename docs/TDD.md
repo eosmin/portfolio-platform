@@ -1169,7 +1169,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 34. `eslint.config.mjs` flat with `eslint-config-next` 16.
    - **Done when:** `pnpm --filter @portfolio/site lint` runs without the `getFilename` crash (ESLint 9.39.5, §2.7.13) and ignores `.next/`, `coverage/`, `.vitest/`.
 35. `lib/env.ts`, `lib/api/client.ts` (typed from `@portfolio/shared`) and the per-resource `lib/api/*.ts` read functions (`'use cache'` + `cacheLife` + `cacheTag`).
-   - **Done when:** `env.ts` validates `NEXT_PUBLIC_API_BASE_URL` and `API_BASE_URL`; `apiGet` Zod-parses every response; each `lib/api/*.ts` read starts with `'use cache'` + `cacheLife` + `cacheTag`; no `export const revalidate` anywhere.
+   - **Done when:** `env.ts` validates `NEXT_PUBLIC_API_BASE_URL` and `API_BASE_URL`; `apiGet` Zod-parses every response; each `lib/api/*.ts` read starts with `'use cache'` + `cacheLife` + `cacheTag`; no `export const revalidate` anywhere. The site's server-side fetches (every visitor, `next build`, revalidation) reach the api from one IP and would share one `publicReadLimiter` budget (`RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, §11.1); decide with the owner how to exempt or size it (shared-secret header or a higher limit), implement it in `apps/api` (in the same PR or a separate api PR), test it, and document it here and in §16.
 36. Verify: `pnpm turbo run lint typecheck test --filter=@portfolio/site`.
    - **Done when:** the command exits 0 and the result is pasted in `PROGRESS.md`.
 37. Commit: `feat(site): bootstrap Next.js 16 + Tailwind 4 with quality tooling`.
