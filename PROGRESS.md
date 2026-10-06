@@ -136,4 +136,6 @@
 
 ## Blockers / open questions
 
+- Blocks step 35 (Phase 8): how the site's server-side fetches get past `publicReadLimiter` (120/min per IP, shared by every visitor, `next build` and revalidation). Needs an owner decision (shared-secret header or higher limit) and an api change; see the 2026-10-04 note and the step 35 text in TDD §13.
+
 - Integration suites each start two Testcontainers; with 16 files in parallel one occasionally times out (`Timed out after 10000ms while waiting for container ports`) and passes on re-run. Not addressed in Phase 6.
