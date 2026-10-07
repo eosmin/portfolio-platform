@@ -4,7 +4,13 @@ import { resolve } from 'node:path';
 
 // The single .env lives at the repo root but Next only reads the app directory.
 // Like dotenv in the api, loadEnvConfig never overrides variables already set.
-loadEnvConfig(resolve(process.cwd(), '../..'));
+// Next has already loaded the app directory by now and caches that result, so only forceReload reads the root.
+loadEnvConfig(
+  resolve(process.cwd(), '../..'),
+  false,
+  { info: () => undefined, error: console.error },
+  true,
+);
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
