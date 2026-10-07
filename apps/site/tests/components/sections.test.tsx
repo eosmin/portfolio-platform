@@ -93,6 +93,20 @@ describe('Hero', () => {
 });
 
 describe('About', () => {
+  it('does not print the photo path as a profile fact', () => {
+    render(
+      <About
+        details={[
+          { id: ID, key: 'location', value: 'CDMX', group: 'basics', order: 0 },
+          { id: ID, key: 'photo', value: '/images/me.png', group: 'basics', order: 1 },
+        ]}
+      />,
+    );
+    expect(screen.getByText('CDMX')).toBeTruthy();
+    expect(screen.queryByText('/images/me.png')).toBeNull();
+    expect(screen.queryByText('photo')).toBeNull();
+  });
+
   it('groups details by group and orders them', () => {
     const details: ProfileDetail[] = [
       { id: ID, key: 'Remote', value: 'Yes', group: 'basics', order: 1 },

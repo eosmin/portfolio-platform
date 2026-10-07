@@ -1,5 +1,132 @@
 @import 'tailwindcss';
 
+/*
+ * Design tokens from docs/DESIGN.md. Components use only the semantic utilities generated
+ * below (bg-surface, text-fg-muted, border-border, ...), never raw palette classes or hex.
+ *
+ * Each token is `light-dark(<light>, <dark>)`, so both values live on one line. The scheme
+ * follows the system (`color-scheme: light dark`) until the visitor picks one, which sets
+ * `data-theme` on <html> and forces it.
+ */
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(#fafafa, #09090b);
+  --surface: light-dark(#ffffff, #18181b);
+  --fg: light-dark(#09090b, #fafafa);
+  --fg-muted: light-dark(#52525b, #a1a1aa);
+  --border: light-dark(#e4e4e7, #27272a);
+  --border-strong: light-dark(#8e8e97, #71717a);
+  --accent: light-dark(#1d4ed8, #60a5fa);
+  --on-accent: light-dark(#ffffff, #09090b);
+  --danger: light-dark(#b91c1c, #f87171);
+  --elev-hover: light-dark(0 4px 16px rgb(9 9 11 / 0.08), 0 4px 16px rgb(0 0 0 / 0.5));
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/*
+ * `dark:` follows the same rule as the tokens above: an explicit data-theme wins, otherwise the
+ * system preference. Used where CSS must pick between two nodes (the toggle icon) with no JS.
+ */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
+}
+
+/* `inline` so utilities read the runtime variables above instead of a build-time copy. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-card-hover: var(--elev-hover);
+}
+
 @theme {
-  --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+
+  --text-display: 3rem;
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.02em;
+  --text-h1: 2.25rem;
+  --text-h1--line-height: 1.1;
+  --text-h1--letter-spacing: -0.015em;
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.2;
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.35;
+  --text-lead: 1.125rem;
+  --text-lead--line-height: 1.55;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--letter-spacing: 0.01em;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+}
+
+@layer base {
+  body {
+    line-height: 1.6;
+  }
+
+  /* One focus ring for every interactive element: 2px accent, offset so it never touches the box. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Native <meter> paints itself green; restyle it with the tokens (WebKit/Blink and Firefox pseudo-elements). */
+  meter {
+    appearance: none;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+  meter::-webkit-meter-bar {
+    height: 0.5rem;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+  meter::-webkit-meter-optimum-value,
+  meter::-webkit-meter-suboptimum-value,
+  meter::-webkit-meter-even-less-good-value {
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+  meter::-moz-meter-bar {
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }

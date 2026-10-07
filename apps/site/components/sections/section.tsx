@@ -12,9 +12,9 @@ interface SectionProps {
 export function Section({ id, title, children, className }: SectionProps): ReactNode {
   const headingId = `${id}-heading`;
   return (
-    <section aria-labelledby={headingId} className={cx('py-12', className)}>
+    <section aria-labelledby={headingId} className={cx('py-12 sm:py-16', className)}>
       <Reveal>
-        <h2 id={headingId} className="mb-6 text-2xl font-semibold tracking-tight">
+        <h2 id={headingId} className="mb-6 text-h2 font-semibold">
           {title}
         </h2>
         {children}

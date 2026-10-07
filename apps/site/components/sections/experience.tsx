@@ -9,7 +9,7 @@ export function Experience({ items }: { items: readonly ExperienceItem[] }): Rea
   return (
     <Section id="experience" title="Experience">
       {items.length === 0 ? (
-        <p className="text-neutral-600">No experience listed yet.</p>
+        <p className="text-fg-muted">No experience listed yet.</p>
       ) : (
         <RevealList className="space-y-4">
           {[...items]
@@ -17,8 +17,8 @@ export function Experience({ items }: { items: readonly ExperienceItem[] }): Rea
             .map((item) => (
               <RevealItem key={item.id}>
                 <Card className="space-y-2">
-                  <h3 className="text-lg font-semibold">{item.title}</h3>
-                  <p className="text-sm text-neutral-600">
+                  <h3 className="text-h3 font-semibold">{item.title}</h3>
+                  <p className="text-sm text-fg-muted">
                     {item.company} ·{' '}
                     <time dateTime={item.startDate}>{formatMonthYear(item.startDate)}</time>
                     {' – '}
@@ -28,9 +28,9 @@ export function Experience({ items }: { items: readonly ExperienceItem[] }): Rea
                       <time dateTime={item.endDate}>{formatMonthYear(item.endDate)}</time>
                     )}
                   </p>
-                  <p className="text-neutral-700">{item.summary}</p>
+                  <p className="text-fg">{item.summary}</p>
                   {item.highlights.length > 0 ? (
-                    <ul className="list-disc space-y-1 pl-5 text-neutral-700">
+                    <ul className="list-disc space-y-1 pl-5 text-fg">
                       {item.highlights.map((highlight, index) => (
                         <li key={`${index}-${highlight}`}>{highlight}</li>
                       ))}

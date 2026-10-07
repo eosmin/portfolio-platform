@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense, type ReactNode } from 'react';
 import { Projects } from '../../components/sections/projects';
+import { ListFallback } from '../../components/ui/list-fallback';
 import { Pagination } from '../../components/ui/pagination';
 import { getProjects } from '../../lib/api/projects';
 import { parsePage } from '../../lib/page-param';
@@ -18,7 +19,7 @@ async function ProjectsList({ searchParams }: ProjectsPageProps): Promise<ReactN
   if (page > 1 && projects.items.length === 0) notFound();
   return (
     <>
-      <Projects projects={projects.items} />
+      <Projects projects={projects.items} preloadFirstCover={page === 1} />
       <Pagination
         basePath="/projects"
         page={projects.page}
@@ -33,7 +34,7 @@ export default function ProjectsPage({ searchParams }: ProjectsPageProps): React
   return (
     <>
       <h1 className="sr-only">Projects</h1>
-      <Suspense fallback={<p role="status">Loading projects…</p>}>
+      <Suspense fallback={<ListFallback>Loading projects…</ListFallback>}>
         <ProjectsList searchParams={searchParams} />
       </Suspense>
     </>

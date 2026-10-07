@@ -37,7 +37,7 @@
 - Language: TypeScript 7 `tsc` (strict, noImplicitAny, noUncheckedIndexedAccess) + the TypeScript 6 API package aliased as `typescript` for typescript-eslint/Next.js (no TS 7 compiler API yet — `TDD.md` §2.7.12)
 - API framework: Express 5.2.1
 - Site framework: Next.js 16.3 (App Router) + React 19.3
-- Styling: Tailwind CSS 4.3.3 + Motion 13.5 (formerly Framer Motion)
+- Styling: Tailwind CSS 4.3.3 + Motion 13.5 (formerly Framer Motion); Markdown bodies: react-markdown 10.1
 - Site caching: Next.js Cache Components (`'use cache'` + `cacheLife` profiles `fresh`/`stable`) — **not** `export const revalidate`, which is incompatible with `cacheComponents` (see `TDD.md` §2.7.2)
 - Database: PostgreSQL 18 + Drizzle ORM 0.45 (drizzle-kit migrations, committed as SQL) — chosen over Prisma to avoid overlap with TaskFlow which already demos Prisma; see `TDD.md` §2.7.5 (`docs/TDD.md` once the build starts)
 - Cache: Redis (ioredis 6.0, RESP3)

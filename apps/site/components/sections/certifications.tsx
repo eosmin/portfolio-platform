@@ -24,7 +24,7 @@ export function Certifications({ certifications, now }: CertificationsProps): Re
       <div className="space-y-8">
         {groups.map(([group, items]) => (
           <div key={group}>
-            <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+            <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-fg-muted">
               {group.slice(2)}
             </h3>
             <ul className="grid gap-4 sm:grid-cols-2">
@@ -43,7 +43,7 @@ export function Certifications({ certifications, now }: CertificationsProps): Re
                     ) : null}
                     <div className="space-y-1">
                       <h4 className="font-semibold">{cert.name}</h4>
-                      <p className="text-sm text-neutral-600">
+                      <p className="text-sm text-fg-muted">
                         {cert.issuer} ·{' '}
                         <time dateTime={cert.issuedAt}>{formatMonthYear(cert.issuedAt)}</time>
                       </p>

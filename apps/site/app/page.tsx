@@ -26,6 +26,10 @@ export default async function HomePage(): Promise<ReactNode> {
       <Hero
         name={profileValue(profile, 'name', 'Portfolio')}
         headline={profileValue(profile, 'headline', 'Full-stack TypeScript developer')}
+        meta={[profileValue(profile, 'location', ''), profileValue(profile, 'available_for', '')]
+          .filter((part) => part !== '')
+          .join(' · ')}
+        photoSrc={profileValue(profile, 'photo', '')}
       >
         <ButtonLink href="/projects">View projects</ButtonLink>
         <ButtonLink href="/contact" variant="secondary">

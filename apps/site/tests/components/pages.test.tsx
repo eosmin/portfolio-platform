@@ -6,7 +6,6 @@ import { Experience } from '../../components/sections/experience';
 import { GithubStats } from '../../components/sections/github-stats';
 import { Languages } from '../../components/sections/languages';
 import { Pagination } from '../../components/ui/pagination';
-import { Prose } from '../../components/ui/prose';
 import { stubBrowser } from '../helpers/browser';
 
 const ID = '00000000-0000-4000-8000-000000000001';
@@ -39,14 +38,6 @@ describe('Pagination', () => {
     expect(screen.getByRole('link', { name: 'Previous' }).getAttribute('href')).toBe(
       '/projects?page=2',
     );
-  });
-});
-
-describe('Prose', () => {
-  it('splits blank-line separated paragraphs and does not interpret Markdown', () => {
-    render(<Prose text={'# Title\n\nSecond paragraph\n\n\n'} />);
-    expect(screen.getAllByText(/./)).toHaveLength(2);
-    expect(screen.getByText('# Title')).toBeTruthy();
   });
 });
 

@@ -25,7 +25,7 @@ export function Pagination({ basePath, page, pageSize, total }: PaginationProps)
       ) : (
         <span />
       )}
-      <p className="text-sm text-neutral-600">
+      <p className="text-sm text-fg-muted">
         Page {page} of {pageCount}
       </p>
       {page < pageCount ? (

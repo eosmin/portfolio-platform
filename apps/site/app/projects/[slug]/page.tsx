@@ -3,9 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Badge } from '../../../components/ui/badge';
+import { CoverImage } from '../../../components/ui/cover-image';
 import { Prose } from '../../../components/ui/prose';
 import { getProject, getProjects } from '../../../lib/api/projects';
 import { slugParams } from '../../../lib/static-params';
+
+// 44 px tall for touch; the row is a wrapping flex container, so the height never stretches a text line.
+const EXTERNAL_LINK =
+  'inline-flex min-h-11 items-center text-accent underline underline-offset-4 hover:no-underline';
 
 interface ProjectPageProps {
   params: Promise<{ slug: string }>;
@@ -27,11 +32,22 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
   if (project === null) notFound();
   return (
     <article className="space-y-6">
-      <Link href="/projects" className="text-sm underline">
+      <Link
+        href="/projects"
+        className="inline-flex min-h-11 items-center text-sm text-fg-muted underline underline-offset-4 hover:text-fg"
+      >
         ← All projects
       </Link>
-      <h1 className="text-4xl font-bold tracking-tight">{project.title}</h1>
-      <p className="text-lg text-neutral-600">{project.description}</p>
+      <h1 className="text-h1 font-bold sm:text-[2.75rem]">{project.title}</h1>
+      {project.coverImage ? (
+        <CoverImage
+          src={project.coverImage}
+          sizes="(min-width: 1024px) 960px, 100vw"
+          ratio="wide"
+          preload
+        />
+      ) : null}
+      <p className="max-w-[68ch] text-lead text-fg-muted">{project.description}</p>
       <ul aria-label="Technologies" className="flex flex-wrap gap-2">
         {project.tech.map((tech) => (
           <li key={tech}>
@@ -40,13 +56,13 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
         ))}
       </ul>
       {project.repoUrl || project.demoUrl ? (
-        <p className="flex gap-4 text-sm">
+        <p className="flex flex-wrap items-center gap-x-4 text-sm">
           {project.repoUrl ? (
             <a
               href={project.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline"
+              className={EXTERNAL_LINK}
             >
               Source code
             </a>
@@ -56,7 +72,7 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
               href={project.demoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline"
+              className={EXTERNAL_LINK}
             >
               Live demo
             </a>

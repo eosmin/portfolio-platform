@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Badge } from '../../../components/ui/badge';
+import { CoverImage } from '../../../components/ui/cover-image';
 import { Prose } from '../../../components/ui/prose';
 import { getBlogPost, getBlogPosts } from '../../../lib/api/blog';
 import { formatMonthYear } from '../../../lib/format';
@@ -28,11 +29,22 @@ export default async function BlogPostPage({ params }: BlogPostPageProps): Promi
   if (post === null) notFound();
   return (
     <article className="space-y-6">
-      <Link href="/blog" className="text-sm underline">
+      <Link
+        href="/blog"
+        className="inline-flex min-h-11 items-center text-sm text-fg-muted underline underline-offset-4 hover:text-fg"
+      >
         ← All posts
       </Link>
-      <h1 className="text-4xl font-bold tracking-tight">{post.title}</h1>
-      <time dateTime={post.publishedAt} className="block text-sm text-neutral-500">
+      <h1 className="text-h1 font-bold sm:text-[2.75rem]">{post.title}</h1>
+      {post.coverImage ? (
+        <CoverImage
+          src={post.coverImage}
+          sizes="(min-width: 1024px) 960px, 100vw"
+          ratio="wide"
+          preload
+        />
+      ) : null}
+      <time dateTime={post.publishedAt} className="block text-sm text-fg-muted">
         {formatMonthYear(post.publishedAt)}
       </time>
       <ul aria-label="Tags" className="flex flex-wrap gap-2">

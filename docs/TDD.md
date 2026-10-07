@@ -73,6 +73,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | Tailwind CSS | **4.3.3** |
 | `@tailwindcss/postcss` | **4.3.3** |
 | Motion (formerly Framer Motion) | **13.5.0** (package name: `motion`) |
+| react-markdown (project and blog bodies) | **10.1.0** (ESM only; renders safely, no `dangerouslySetInnerHTML`) |
 | Lucide React | **1.49.0** |
 | `server-only` | **0.0.1** (added in step 38; the only version published, checked with `npm view`) |
 | Zod | **4.6.5** |
@@ -413,6 +414,12 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
 - `graphql` is an optional peer exported from `msw/graphql` — unused here (the GitHub proxy is REST only).
 - In Node tests `setupServer(...).close()` is **synchronous** (do not `await` it — typed ESLint flags `await-thenable`); `listen({ onUnhandledFrame: 'error' })` replaces `onUnhandledRequest` (the old name is now a TypeScript error).
 - Use it only in tests of the GitHub proxy (§14.4).
+
+#### 2.7.20 react-markdown 10.1.0 (added in step 48a)
+- `import Markdown, { type Components } from 'react-markdown'`; ESM only, works in Server Components. Peer: `react >= 18`.
+- Safe by default: raw HTML is not rendered as HTML and URLs go through `defaultUrlTransform`. This project also passes `skipHtml` (raw HTML dropped) and `disallowedElements={['img']}` (cover images have their own field); a `components` map restyles elements with the design tokens and steps headings down one level so the page keeps a single `h1`.
+- Not added: `remark-gfm` (tables and task lists), `rehype-raw` and syntax highlighting; add each only when a body needs it.
+- `next/image` in Next 16: `priority` is deprecated in favor of **`preload`** (passing both throws); use `preload` for the one above-the-fold image. An unknown remote hostname throws at render, so `CoverImage` and `Hero` check `canOptimizeImage()` first and skip the image.
 
 #### 2.7.19 pnpm 12.8.2 (**from 11.x**)
 - `pnpm-workspace.yaml` may contain **only settings pnpm recognizes**: an unknown or misspelled key now warns, and **fails with `ERR_PNPM_UNRECOGNIZED_WORKSPACE_SETTINGS`** when the project pins a pnpm version the running pnpm satisfies (we pin it via the root `packageManager` field). Verify any setting against the pnpm 12 docs.
@@ -1205,18 +1212,20 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Not-found travels as a value:** `getProject` and `getBlogPost` return `Project | null` / `BlogPost | null` (`apiGetOrNull` in `client.ts` maps an api 404 to `null`) and the page calls `notFound()`. An error thrown inside a `'use cache'` function is re-created across the cache boundary and loses its `status`, so catching it in the page answers 500 instead of 404.
    - **Missing slug cache:** a detail reader that gets `null` calls `cacheLife('missing')` (30 s revalidate, `expire` ≥ 300 s, defined in `next.config.ts`) instead of `stable`, so a post published after a miss shows up within about a minute. `expire` must stay ≥ 300 s: a shorter profile is "dynamic" and fails the prerender of unlisted slugs.
    - **Empty content:** `generateStaticParams` goes through `slugParams` (`lib/static-params.ts`); with no content it returns one placeholder param, because Cache Components rejects `[]`. A `page` beyond the last page calls `notFound()`.
-   - **Plain-text bodies:** `body` is Markdown in the contract, but no renderer is pinned in §2; until the owner adds one, the detail pages render `body` as plain paragraphs (`components/ui/prose.tsx`).
+   - **Markdown bodies:** `body` is rendered with `react-markdown` (§2.7.20) in `components/ui/prose.tsx`: raw HTML and images are not rendered, links to the web open in a new tab. Before step 48a the detail pages showed plain paragraphs.
    - **Resilient `apiGet` (`lib/api/client.ts`):** bound each request (headers and body) with an `AbortController` aborted by a `setTimeout` (not `AbortSignal.timeout`, whose internal timer vitest's fake timers cannot advance; value chosen with the owner when the first page is built) so `next build` and revalidations never hang on an unresponsive api, and turn a 2xx response whose body is not JSON into an `ApiError` (`INVALID_RESPONSE`) instead of a bare `SyntaxError`. Unit tests in `tests/api-client.test.ts` for both (a never-resolving fetch with fake timers; an HTML 200).
 45. Commit pattern: `feat(site): <route>`.
    - **Done when:** one commit per route, each merged to `main`.
 
 ### Phase 11a — apps/site visual direction
 Inserted after Phase 11 (owner request, 2026-10-07): Phases 9–11 ship working, accessible pages on neutral Tailwind primitives with no visual identity. This phase gives the site one. Numbered `45a…45e` so steps 46–64 keep their numbers. Runs only after the Phase 11 PR is merged. The Context7 rule applies to `next/font`, `next/image` and Tailwind 4 `@theme`.
-45a. **Direction brief (no code).** Owner and agent agree a direction using the `ui-ux-pro-max` skill and write it to `docs/DESIGN.md`: tone, color palette (light and dark), font pairing, type scale, spacing and radius scale, motion principles, hero concept, and the decisions below. Open decisions to settle here: dark mode yes/no and how it switches (system only or toggle); cover images via `next/image` with `remotePatterns` or plain `<img>`; a Markdown renderer for project/blog `body` (a pinned dependency, its own `chore(deps)` commit) or keep plain text; real content for the profile keys `name`/`headline` and the hero.
-   - **Done when:** the owner approves `docs/DESIGN.md` in writing; every open decision above has an answer; no source file changed.
+45a. **Direction brief (no code).** Owner and agent agree a direction using the `ui-ux-pro-max` skill and write it to `docs/DESIGN.md`: tone, color palette (light and dark), font pairing, type scale, spacing and radius scale, motion principles, hero concept, and the decisions below. Open decisions to settle here: dark mode yes/no and how it switches (system only or persistent toggle); cover images via `next/image` with `remotePatterns` or plain `<img>`; a Markdown renderer for project/blog `body` (a pinned dependency, its own `chore(deps)` commit) or keep plain text; real content for the profile keys `name`/`headline` and the hero.
+   - **Done when:** the owner approves `docs/DESIGN.md` in writing; every open decision above has an answer; the step changes documentation only (`docs/DESIGN.md`, this TDD, `PROGRESS.md`). Step 45b (content) may be done before or after the approval.
+45b. **Demo content for the design.** Extend `apps/api/src/db/seed-data.ts` with test values for the profile keys `name`, `headline`, `location`, `available_for` (text close to the owner's profile) and cover images for the demo projects and posts, so the visual work is reviewed with realistic content. Demo data only; the seed already skips it in production.
+   - **Done when:** `pnpm --filter @portfolio/api db:seed` run twice leaves one set of rows; `GET /v1/profile` returns the four keys; the api's seed integration test passes with the new counts.
 46a. **Design tokens.** Express `docs/DESIGN.md` as Tailwind 4 `@theme` tokens in `app/globals.css` (semantic color names, font families via `next/font`, spacing/radius, dark variant if decided). Replace raw palette classes (`neutral-*`, `red-*`) in `components/` and `app/` with the semantic tokens.
    - **Done when:** `grep -rnE "(text|bg|border|outline)-(neutral|red|gray|slate)-" apps/site/components apps/site/app` finds nothing; build passes; both themes render when dark mode is in scope.
-47a. **Primitives and layout.** Restyle `components/ui/*` and `components/layout/*`; header and footer read the name from profile data instead of the hard-coded "Portfolio"; the footer's `<Suspense>` fallback becomes a fixed-height skeleton (CLS fix recorded in `PROGRESS.md` Blockers).
+47a. **Primitives and layout.** Restyle `components/ui/*` and `components/layout/*`, and add the persistent theme toggle with its pre-paint script (`docs/DESIGN.md` §1); header and footer read the name from profile data instead of the hard-coded "Portfolio"; the footer's `<Suspense>` fallback becomes a fixed-height skeleton (CLS fix recorded in `PROGRESS.md` Blockers).
    - **Done when:** component tests pass; Lighthouse CLS < 0.1 on `/` with a cold cache; focus rings visible in both themes.
 48a. **Sections and pages.** Restyle `components/sections/*` and every route per the hero concept, cover images and Markdown decision of 45a; motion stays on the `lib/motion` variants and degrades with `useReducedMotion`.
    - **Done when:** `pnpm turbo run lint typecheck test --filter=@portfolio/site` and `pnpm --filter @portfolio/site build` pass; no horizontal scroll at 375, 768 and 1280 px.
