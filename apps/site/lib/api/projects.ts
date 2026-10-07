@@ -1,6 +1,6 @@
 import { paginatedSchema, projectSchema, type Paginated, type Project } from '@portfolio/shared';
 import { cacheLife, cacheTag } from 'next/cache';
-import { apiGet } from './client';
+import { apiGet, apiGetOrNull } from './client';
 
 const projectListSchema = paginatedSchema(projectSchema);
 
@@ -18,9 +18,12 @@ export async function getFeaturedProjects(): Promise<Paginated<Project>> {
   return apiGet(projectListSchema, '/projects?featured=true');
 }
 
-export async function getProject(slug: string): Promise<Project> {
+/** `null` when no project has that slug. */
+export async function getProject(slug: string): Promise<Project | null> {
   'use cache';
-  cacheLife('stable');
   cacheTag('projects');
-  return apiGet(projectSchema, `/projects/${encodeURIComponent(slug)}`);
+  const found = await apiGetOrNull(projectSchema, `/projects/${encodeURIComponent(slug)}`);
+  // A missing slug may be published soon; do not keep the 404 for the full 'stable' lifetime.
+  cacheLife(found === null ? 'missing' : 'stable');
+  return found;
 }
