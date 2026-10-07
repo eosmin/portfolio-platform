@@ -4,6 +4,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button, ButtonLink } from '../../components/ui/button';
 import { Card } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
 
 afterEach(cleanup);
 
@@ -81,7 +82,7 @@ describe('Input', () => {
   it('exposes the error through aria-describedby and aria-invalid', () => {
     render(<Input label="Name" error="Name is required" />);
     const input = screen.getByLabelText('Name');
-    const error = screen.getByText('Name is required');
+    const error = screen.getByText('Name is required').closest('p') as HTMLElement;
     expect(input.getAttribute('aria-invalid')).toBe('true');
     expect(input.getAttribute('aria-describedby')).toBe(error.id);
   });
@@ -89,7 +90,7 @@ describe('Input', () => {
   it('keeps a caller aria-describedby and appends the error id', () => {
     render(<Input label="Name" aria-describedby="hint" error="Required" />);
     const input = screen.getByLabelText('Name');
-    const errorId = screen.getByText('Required').id;
+    const errorId = screen.getByText('Required').closest('p')?.id;
     expect(input.getAttribute('aria-describedby')).toBe(`hint ${errorId}`);
   });
 
@@ -126,5 +127,36 @@ describe('Input', () => {
       </>,
     );
     expect(screen.getByLabelText('First').id).not.toBe(screen.getByLabelText('Second').id);
+  });
+});
+
+describe('Textarea', () => {
+  it('is labelled and exposes the error like Input does', () => {
+    render(<Textarea label="Message" error="Too short" />);
+    const field = screen.getByLabelText('Message');
+    const error = screen.getByText('Too short').closest('p');
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(field.getAttribute('aria-describedby')).toBe(error?.id);
+  });
+
+  it('puts an icon next to the error so color is not the only signal', () => {
+    render(<Textarea label="Message" error="Too short" />);
+    expect(screen.getByText('Too short').closest('p')?.querySelector('svg')).not.toBeNull();
+  });
+});
+
+describe('Card', () => {
+  it('reacts to hover and focus only when interactive', () => {
+    render(
+      <>
+        <Card aria-label="plain">a</Card>
+        <Card interactive aria-label="linked">
+          b
+        </Card>
+      </>,
+    );
+    expect(screen.getByLabelText('plain').className).not.toContain('hover:border-accent');
+    expect(screen.getByLabelText('linked').className).toContain('hover:border-accent');
   });
 });

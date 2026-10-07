@@ -1,7 +1,7 @@
 import type { SocialLink } from '@portfolio/shared';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Footer } from '../../components/layout/footer';
+import { Footer, FooterSkeleton } from '../../components/layout/footer';
 import { Header } from '../../components/layout/header';
 import { NAV_ITEMS } from '../../components/layout/nav-links';
 import { SocialLinkList } from '../../components/layout/social-link-list';
@@ -13,6 +13,11 @@ const { usePathname, getSocialLinks } = vi.hoisted(() => ({
 
 vi.mock('next/navigation', () => ({ usePathname }));
 vi.mock('../../lib/api/social-links', () => ({ getSocialLinks }));
+// The real SiteName is an async Server Component; jsdom cannot render those.
+vi.mock('../../components/layout/site-name', () => ({
+  FALLBACK_SITE_NAME: 'Portfolio',
+  SiteName: () => 'Ada Lovelace',
+}));
 
 function link(overrides: Partial<SocialLink> & Pick<SocialLink, 'id' | 'platform'>): SocialLink {
   return {
@@ -27,14 +32,37 @@ function link(overrides: Partial<SocialLink> & Pick<SocialLink, 'id' | 'platform
 
 beforeEach(() => {
   usePathname.mockReturnValue('/');
+  vi.stubGlobal('matchMedia', () => ({
+    matches: false,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+  }));
 });
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('Header', () => {
+  it('shows the owner name from the profile as the home link', () => {
+    render(<Header />);
+    const home = screen.getByRole('link', { name: 'Ada Lovelace' });
+    expect(home.getAttribute('href')).toBe('/');
+  });
+
+  it('puts the theme toggle after the navigation in the tab order', () => {
+    render(<Header />);
+    const toggle = screen.getByRole('button', { name: /^Switch to (light|dark) mode$/ });
+    const lastLink = within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
+      name: 'Contact',
+    });
+    expect(
+      lastLink.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('puts the skip link first in tab order, pointing at #main', () => {
     render(<Header />);
     const [first] = screen.getAllByRole('link');
@@ -155,5 +183,23 @@ describe('Footer', () => {
     render(await Footer());
     expect(screen.getByRole('contentinfo')).toBeTruthy();
     expect(screen.queryByRole('list')).toBeNull();
+  });
+});
+
+describe('Footer name and skeleton', () => {
+  it('shows the copyright line with the owner name', async () => {
+    getSocialLinks.mockResolvedValue([]);
+    render(await Footer());
+    expect(screen.getByRole('contentinfo').textContent).toContain('© Ada Lovelace');
+  });
+
+  it('has a skeleton that is hidden from assistive tech and holds the same space', async () => {
+    getSocialLinks.mockResolvedValue([]);
+    const { container: skeleton } = render(<FooterSkeleton />);
+    const { container: footer } = render(await Footer());
+    expect(skeleton.querySelector('footer')?.getAttribute('aria-hidden')).toBe('true');
+    expect(skeleton.querySelector('footer > div')?.className).toBe(
+      footer.querySelector('footer > div')?.className,
+    );
   });
 });

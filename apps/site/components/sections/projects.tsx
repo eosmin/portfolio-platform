@@ -21,9 +21,12 @@ export function Projects({
         <RevealList className="grid gap-6 sm:grid-cols-2">
           {projects.map((project) => (
             <RevealItem key={project.id}>
-              <Card className="flex h-full flex-col gap-3">
+              <Card interactive className="flex h-full flex-col gap-3">
                 <h3 className="text-lg font-semibold">
-                  <Link href={`/projects/${project.slug}`} className="hover:underline">
+                  <Link
+                    href={`/projects/${project.slug}`}
+                    className="after:absolute after:inset-0 hover:underline"
+                  >
                     {project.title}
                   </Link>
                 </h3>

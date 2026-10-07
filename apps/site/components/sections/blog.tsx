@@ -22,12 +22,15 @@ export function Blog({
         <RevealList className="grid gap-6 sm:grid-cols-2">
           {posts.map((post) => (
             <RevealItem key={post.id}>
-              <Card className="flex h-full flex-col gap-3">
+              <Card interactive className="flex h-full flex-col gap-3">
                 <time dateTime={post.publishedAt} className="text-sm text-fg-muted">
                   {formatMonthYear(post.publishedAt)}
                 </time>
                 <h3 className="text-lg font-semibold">
-                  <Link href={`/blog/${post.slug}`} className="hover:underline">
+                  <Link
+                    href={`/blog/${post.slug}`}
+                    className="after:absolute after:inset-0 hover:underline"
+                  >
                     {post.title}
                   </Link>
                 </h3>

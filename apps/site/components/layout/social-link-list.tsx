@@ -42,7 +42,7 @@ export function SocialLinkList({ links }: { links: readonly SocialLink[] }): Rea
   const visible = links.filter((link) => link.visible).sort((a, b) => a.order - b.order);
   if (visible.length === 0) return null;
   return (
-    <ul aria-label="Social links" className="flex flex-wrap items-center gap-4">
+    <ul aria-label="Social links" className="flex flex-wrap items-center gap-x-4">
       {visible.map((link) => {
         const Icon = PLATFORM_ICONS[link.platform];
         const external = !link.url.startsWith('mailto:');
@@ -51,9 +51,9 @@ export function SocialLinkList({ links }: { links: readonly SocialLink[] }): Rea
             <a
               href={link.url}
               {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              className="inline-flex items-center gap-2 rounded-md text-sm text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm text-fg-muted transition-colors duration-150 hover:text-fg"
             >
-              <Icon aria-hidden="true" size={16} />
+              <Icon aria-hidden="true" size={20} strokeWidth={1.75} />
               {link.label || PLATFORM_LABELS[link.platform]}
             </a>
           </li>

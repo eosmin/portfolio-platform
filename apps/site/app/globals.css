@@ -15,7 +15,7 @@
   --fg: light-dark(#09090b, #fafafa);
   --fg-muted: light-dark(#52525b, #a1a1aa);
   --border: light-dark(#e4e4e7, #27272a);
-  --border-strong: light-dark(#71717a, #71717a);
+  --border-strong: light-dark(#8e8e97, #71717a);
   --accent: light-dark(#1d4ed8, #60a5fa);
   --on-accent: light-dark(#ffffff, #09090b);
   --danger: light-dark(#b91c1c, #f87171);
@@ -28,6 +28,21 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
+}
+
+/*
+ * `dark:` follows the same rule as the tokens above: an explicit data-theme wins, otherwise the
+ * system preference. Used where CSS must pick between two nodes (the toggle icon) with no JS.
+ */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+      @slot;
+    }
+  }
 }
 
 /* `inline` so utilities read the runtime variables above instead of a build-time copy. */
@@ -78,5 +93,40 @@
 @layer base {
   body {
     line-height: 1.6;
+  }
+
+  /* One focus ring for every interactive element: 2px accent, offset so it never touches the box. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Native <meter> paints itself green; restyle it with the tokens (WebKit/Blink and Firefox pseudo-elements). */
+  meter {
+    appearance: none;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+  meter::-webkit-meter-bar {
+    height: 0.5rem;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--border);
+  }
+  meter::-webkit-meter-optimum-value,
+  meter::-webkit-meter-suboptimum-value,
+  meter::-webkit-meter-even-less-good-value {
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+  meter::-moz-meter-bar {
+    border-radius: 9999px;
+    background: var(--accent);
+  }
+
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
   }
 }
