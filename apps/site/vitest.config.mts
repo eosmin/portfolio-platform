@@ -18,8 +18,14 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['lib/**/*.ts'],
-      thresholds: { lines: 60, functions: 60, branches: 60, statements: 60 },
+      include: ['lib/**/*.ts', 'components/**/*.tsx', 'app/**/*.{ts,tsx}'],
+      thresholds: {
+        lines: 60,
+        functions: 60,
+        branches: 60,
+        statements: 60,
+        'lib/**': { lines: 80, functions: 80, branches: 80, statements: 80 },
+      },
     },
     projects: [
       {
