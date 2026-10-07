@@ -1,3 +1,4 @@
+import 'server-only';
 import { errorSchema, SITE_KEY_HEADER } from '@portfolio/shared';
 import type { z } from 'zod';
 import { env } from '../env';
