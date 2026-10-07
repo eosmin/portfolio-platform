@@ -30,6 +30,7 @@ export const envSchema = z.object({
   RATE_LIMIT_PUBLIC_READ_PER_MINUTE: positiveInt(120),
   IP_HASH_SALT: z.string().min(16),
   METRICS_TOKEN: z.string().min(16),
+  SITE_API_KEY: z.string().min(16),
 });
 
 export type Env = z.infer<typeof envSchema>;
