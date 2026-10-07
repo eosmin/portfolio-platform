@@ -3,9 +3,12 @@ import type { ReactNode } from 'react';
 import { groupBy } from '../../lib/group';
 import { Section } from './section';
 
+// Keys the page shows elsewhere (the photo is a path, not something to read as a fact).
+const HIDDEN_KEYS: ReadonlySet<string> = new Set(['photo']);
+
 export function About({ details }: { details: readonly ProfileDetail[] }): ReactNode {
   const groups = groupBy(
-    [...details].sort((a, b) => a.order - b.order),
+    details.filter((d) => !HIDDEN_KEYS.has(d.key)).sort((a, b) => a.order - b.order),
     (d) => d.group,
   );
   return (

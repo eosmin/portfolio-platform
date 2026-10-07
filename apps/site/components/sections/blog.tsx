@@ -5,6 +5,7 @@ import { formatMonthYear } from '../../lib/format';
 import { RevealItem, RevealList } from '../../lib/motion/reveal';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { CoverImage } from '../ui/cover-image';
 import { Section } from './section';
 
 export function Blog({
@@ -23,10 +24,16 @@ export function Blog({
           {posts.map((post) => (
             <RevealItem key={post.id}>
               <Card interactive className="flex h-full flex-col gap-3">
+                {post.coverImage ? (
+                  <CoverImage
+                    src={post.coverImage}
+                    sizes="(min-width: 1024px) 480px, (min-width: 640px) 45vw, 100vw"
+                  />
+                ) : null}
                 <time dateTime={post.publishedAt} className="text-sm text-fg-muted">
                   {formatMonthYear(post.publishedAt)}
                 </time>
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-h3 font-semibold">
                   <Link
                     href={`/blog/${post.slug}`}
                     className="after:absolute after:inset-0 hover:underline"

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Contact' };
 export default function ContactPage(): ReactNode {
   return (
     <section aria-labelledby="contact-heading" className="space-y-6">
-      <h1 id="contact-heading" className="text-4xl font-bold tracking-tight">
+      <h1 id="contact-heading" className="text-h1 font-bold sm:text-[2.75rem]">
         Contact
       </h1>
       <p className="max-w-xl text-fg-muted">Send a message and I will get back to you.</p>

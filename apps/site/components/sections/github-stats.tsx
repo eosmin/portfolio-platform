@@ -22,18 +22,22 @@ export function GithubStats({ stats }: { stats: GithubStatsData }): ReactNode {
         <dl className="grid gap-4 sm:grid-cols-3">
           <div>
             <dt className="text-sm text-fg-muted">Public repositories</dt>
-            <dd className="text-2xl font-semibold">{stats.publicRepos}</dd>
+            <dd className="font-mono text-h2 font-semibold tabular-nums">{stats.publicRepos}</dd>
           </div>
           {stats.memberSince ? (
             <div>
               <dt className="text-sm text-fg-muted">Member since</dt>
-              <dd className="text-2xl font-semibold">{formatMonthYear(stats.memberSince)}</dd>
+              <dd className="font-mono text-h2 font-semibold tabular-nums">
+                {formatMonthYear(stats.memberSince)}
+              </dd>
             </div>
           ) : null}
           {stats.lastPushedAt ? (
             <div>
               <dt className="text-sm text-fg-muted">Last push</dt>
-              <dd className="text-2xl font-semibold">{formatMonthYear(stats.lastPushedAt)}</dd>
+              <dd className="font-mono text-h2 font-semibold tabular-nums">
+                {formatMonthYear(stats.lastPushedAt)}
+              </dd>
             </div>
           ) : null}
         </dl>

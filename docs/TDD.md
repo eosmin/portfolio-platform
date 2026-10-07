@@ -73,6 +73,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | Tailwind CSS | **4.3.3** |
 | `@tailwindcss/postcss` | **4.3.3** |
 | Motion (formerly Framer Motion) | **13.5.0** (package name: `motion`) |
+| react-markdown (project and blog bodies) | **10.1.0** (ESM only; renders safely, no `dangerouslySetInnerHTML`) |
 | Lucide React | **1.49.0** |
 | `server-only` | **0.0.1** (added in step 38; the only version published, checked with `npm view`) |
 | Zod | **4.6.5** |
@@ -413,6 +414,12 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
 - `graphql` is an optional peer exported from `msw/graphql` — unused here (the GitHub proxy is REST only).
 - In Node tests `setupServer(...).close()` is **synchronous** (do not `await` it — typed ESLint flags `await-thenable`); `listen({ onUnhandledFrame: 'error' })` replaces `onUnhandledRequest` (the old name is now a TypeScript error).
 - Use it only in tests of the GitHub proxy (§14.4).
+
+#### 2.7.20 react-markdown 10.1.0 (added in step 48a)
+- `import Markdown, { type Components } from 'react-markdown'`; ESM only, works in Server Components. Peer: `react >= 18`.
+- Safe by default: raw HTML is not rendered as HTML and URLs go through `defaultUrlTransform`. This project also passes `skipHtml` (raw HTML dropped) and `disallowedElements={['img']}` (cover images have their own field); a `components` map restyles elements with the design tokens and steps headings down one level so the page keeps a single `h1`.
+- Not added: `remark-gfm` (tables and task lists), `rehype-raw` and syntax highlighting; add each only when a body needs it.
+- `next/image` in Next 16: `priority` is deprecated in favor of **`preload`** (passing both throws); use `preload` for the one above-the-fold image. An unknown remote hostname throws at render, so `CoverImage` and `Hero` check `canOptimizeImage()` first and skip the image.
 
 #### 2.7.19 pnpm 12.8.2 (**from 11.x**)
 - `pnpm-workspace.yaml` may contain **only settings pnpm recognizes**: an unknown or misspelled key now warns, and **fails with `ERR_PNPM_UNRECOGNIZED_WORKSPACE_SETTINGS`** when the project pins a pnpm version the running pnpm satisfies (we pin it via the root `packageManager` field). Verify any setting against the pnpm 12 docs.
@@ -1205,7 +1212,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Not-found travels as a value:** `getProject` and `getBlogPost` return `Project | null` / `BlogPost | null` (`apiGetOrNull` in `client.ts` maps an api 404 to `null`) and the page calls `notFound()`. An error thrown inside a `'use cache'` function is re-created across the cache boundary and loses its `status`, so catching it in the page answers 500 instead of 404.
    - **Missing slug cache:** a detail reader that gets `null` calls `cacheLife('missing')` (30 s revalidate, `expire` ≥ 300 s, defined in `next.config.ts`) instead of `stable`, so a post published after a miss shows up within about a minute. `expire` must stay ≥ 300 s: a shorter profile is "dynamic" and fails the prerender of unlisted slugs.
    - **Empty content:** `generateStaticParams` goes through `slugParams` (`lib/static-params.ts`); with no content it returns one placeholder param, because Cache Components rejects `[]`. A `page` beyond the last page calls `notFound()`.
-   - **Plain-text bodies:** `body` is Markdown in the contract, but no renderer is pinned in §2; until the owner adds one, the detail pages render `body` as plain paragraphs (`components/ui/prose.tsx`).
+   - **Markdown bodies:** `body` is rendered with `react-markdown` (§2.7.20) in `components/ui/prose.tsx`: raw HTML and images are not rendered, links to the web open in a new tab. Before step 48a the detail pages showed plain paragraphs.
    - **Resilient `apiGet` (`lib/api/client.ts`):** bound each request (headers and body) with an `AbortController` aborted by a `setTimeout` (not `AbortSignal.timeout`, whose internal timer vitest's fake timers cannot advance; value chosen with the owner when the first page is built) so `next build` and revalidations never hang on an unresponsive api, and turn a 2xx response whose body is not JSON into an `ApiError` (`INVALID_RESPONSE`) instead of a bare `SyntaxError`. Unit tests in `tests/api-client.test.ts` for both (a never-resolving fetch with fake timers; an HTML 200).
 45. Commit pattern: `feat(site): <route>`.
    - **Done when:** one commit per route, each merged to `main`.

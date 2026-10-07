@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { RevealItem, RevealList } from '../../lib/motion/reveal';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
+import { CoverImage } from '../ui/cover-image';
 import { Section } from './section';
 
 export function Projects({
@@ -22,7 +23,13 @@ export function Projects({
           {projects.map((project) => (
             <RevealItem key={project.id}>
               <Card interactive className="flex h-full flex-col gap-3">
-                <h3 className="text-lg font-semibold">
+                {project.coverImage ? (
+                  <CoverImage
+                    src={project.coverImage}
+                    sizes="(min-width: 1024px) 480px, (min-width: 640px) 45vw, 100vw"
+                  />
+                ) : null}
+                <h3 className="text-h3 font-semibold">
                   <Link
                     href={`/projects/${project.slug}`}
                     className="after:absolute after:inset-0 hover:underline"

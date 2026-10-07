@@ -8,6 +8,21 @@ const valid = {
 };
 
 describe('parseEnv', () => {
+  it('parses NEXT_IMAGE_HOSTS into a list, empty when unset', () => {
+    expect(parseEnv(valid).imageHosts).toEqual([]);
+    expect(parseEnv({ ...valid, NEXT_IMAGE_HOSTS: 'a.com, B.org ,' }).imageHosts).toEqual([
+      'a.com',
+      'b.org',
+    ]);
+  });
+
+  it('rejects a NEXT_IMAGE_HOSTS entry that is not a bare hostname, as a ZodError', () => {
+    expect(() => parseEnv({ ...valid, NEXT_IMAGE_HOSTS: 'https://a.com' })).toThrow(ZodError);
+    expect(() => parseEnv({ ...valid, NEXT_IMAGE_HOSTS: 'https://a.com' })).toThrow(
+      /NEXT_IMAGE_HOSTS/,
+    );
+  });
+
   it('falls back to the public api URL when API_BASE_URL is unset', () => {
     expect(parseEnv(valid).API_BASE_URL).toBe(valid.NEXT_PUBLIC_API_BASE_URL);
   });

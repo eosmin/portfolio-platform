@@ -17,7 +17,7 @@ export function Experience({ items }: { items: readonly ExperienceItem[] }): Rea
             .map((item) => (
               <RevealItem key={item.id}>
                 <Card className="space-y-2">
-                  <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <h3 className="text-h3 font-semibold">{item.title}</h3>
                   <p className="text-sm text-fg-muted">
                     {item.company} ·{' '}
                     <time dateTime={item.startDate}>{formatMonthYear(item.startDate)}</time>

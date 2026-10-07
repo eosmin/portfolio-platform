@@ -14,6 +14,7 @@ export default defineConfig({
       API_BASE_URL: 'http://api.test',
       NEXT_PUBLIC_API_BASE_URL: 'http://api.test',
       SITE_API_KEY: 'test-site-api-key-16',
+      NEXT_IMAGE_HOSTS: 'images.example.com',
     },
     coverage: {
       provider: 'v8',
