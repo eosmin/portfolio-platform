@@ -17,13 +17,21 @@ function isActive(pathname: string, href: string): boolean {
   return href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Same markup as `NavLinks` without a current page: shown while the pathname of a dynamic route streams in. */
+export function NavLinksFallback(): ReactNode {
+  return <NavList pathname={null} />;
+}
+
 export function NavLinks(): ReactNode {
-  const pathname = usePathname();
+  return <NavList pathname={usePathname()} />;
+}
+
+function NavList({ pathname }: { pathname: string | null }): ReactNode {
   return (
     <nav aria-label="Main">
       <ul className="flex flex-wrap items-center">
         {NAV_ITEMS.map(({ href, label }) => {
-          const active = isActive(pathname, href);
+          const active = pathname !== null && isActive(pathname, href);
           return (
             <li key={href}>
               <Link

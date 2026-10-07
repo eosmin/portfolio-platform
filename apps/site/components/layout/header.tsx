@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Suspense, type ReactNode } from 'react';
 import { FALLBACK_SITE_NAME, SiteName } from './site-name';
-import { NavLinks } from './nav-links';
+import { NavLinks, NavLinksFallback } from './nav-links';
 import { ThemeToggle } from './theme-toggle';
 
 export function Header(): ReactNode {
@@ -27,7 +27,9 @@ export function Header(): ReactNode {
             </Suspense>
           </Link>
           <div className="-ml-1.5 sm:ml-0">
-            <NavLinks />
+            <Suspense fallback={<NavLinksFallback />}>
+              <NavLinks />
+            </Suspense>
           </div>
           <div className="relative ml-auto sm:ml-2 sm:pl-2 sm:before:absolute sm:before:left-0 sm:before:top-1/2 sm:before:h-5 sm:before:w-px sm:before:-translate-y-1/2 sm:before:bg-border">
             <ThemeToggle />

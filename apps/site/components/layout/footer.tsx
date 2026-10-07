@@ -1,3 +1,4 @@
+import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { getSocialLinks } from '../../lib/api/social-links';
 import { SiteName } from './site-name';
@@ -16,6 +17,7 @@ export function FooterSkeleton(): ReactNode {
 }
 
 export async function Footer(): Promise<ReactNode> {
+  await connection();
   const links = await getSocialLinks();
   return (
     <footer className="border-t border-border">
