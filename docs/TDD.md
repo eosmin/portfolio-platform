@@ -74,6 +74,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | `@tailwindcss/postcss` | **4.3.3** |
 | Motion (formerly Framer Motion) | **13.5.0** (package name: `motion`) |
 | Lucide React | **1.49.0** |
+| `server-only` | **0.0.1** (added in step 38; the only version published, checked with `npm view`) |
 | Zod | **4.6.5** |
 | `react-hook-form` | **7.89.0** |
 | `@hookform/resolvers` | **5.9.1** |
@@ -132,7 +133,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | Component | Version |
 |---|---|
 | ESLint | **9.39.5** (latest 9.x — **not 10**, see §2.7.13) |
-| `@eslint/js` | **9.39.5** (must match `eslint`) |
+| `@eslint/js` | **9.39.5** (must match `eslint`; a dependency only of the packages whose `eslint.config.mjs` imports `js.configs.recommended`: the root, `packages/shared` and `apps/api`. `apps/site` does not install it: its rules come from `eslint-config-next`) |
 | `typescript-eslint` | **8.71.0** (needs the TypeScript 6 API package, see §2.7.12; supports ESLint 9) |
 | `eslint-config-next` | **16.3.8** |
 | `eslint-config-prettier` | **10.1.8** |
@@ -375,7 +376,7 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
 #### 2.7.13 ESLint 9.39.5 (flat config) — deliberately **not** ESLint 10
 - **Why not 10:** `eslint-config-next@16.3.8` bundles `eslint-plugin-react@7.37.5` (peer range `… || ^9.7`, newest published release). Under ESLint 10 it crashes on every file: `TypeError: Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function` (ESLint 10 removed `context.getFilename()`). `eslint-plugin-import` and `eslint-plugin-jsx-a11y` also cap at `^9`. Reproduced in the integration run; ESLint-10 support is still open work upstream in `eslint-plugin-react`. **Revisit** (bump `eslint` + `@eslint/js` to 10.x together) once `eslint-plugin-react` publishes ESLint 10 support and `pnpm peers check` shows no ESLint peer errors.
 - **Flat config only** (`eslint.config.mjs`). `.eslintrc.*`, `eslintConfig` in `package.json` and `ESLINT_USE_FLAT_CONFIG=false` are banned (they are deprecated in 9 and removed in 10, so using flat now keeps the 10 upgrade trivial).
-- `@eslint/js` → `js.configs.recommended` (never the `"eslint:recommended"` string). `--rulesdir` and the `FlatESLint`/`LegacyESLint` classes are not used.
+- `@eslint/js` → `js.configs.recommended` in the root, `packages/shared` and `apps/api` configs (never the `"eslint:recommended"` string); `apps/site` uses the `eslint-config-next` flat configs instead and does not depend on `@eslint/js`. `--rulesdir` and the `FlatESLint`/`LegacyESLint` classes are not used.
 - Next.js flat config (verified): `import { defineConfig, globalIgnores } from 'eslint/config'; import nextVitals from 'eslint-config-next/core-web-vitals'; import nextTs from 'eslint-config-next/typescript';` then `defineConfig([...nextVitals, ...nextTs, prettier, globalIgnores([...])])`.
 - Every package's `globalIgnores`/`ignores` must cover generated output: `dist/**`, `.next/**`, `coverage/**`, `.vitest/**`, `next-env.d.ts`, `*.config.mjs`. Otherwise typed linting fails with "was not found by the project service" on generated files.
 - Typed linting (`tseslint.configs.recommendedTypeChecked` + `parserOptions.projectService`) works on the TypeScript 6 API alias (§2.7.12).
@@ -790,7 +791,7 @@ chore: initial project setup
 | apps/site | Prettier | ESLint flat + typescript-eslint + eslint-config-next | `tsc --noEmit` | Vitest + Playwright |
 | packages/shared | Prettier | ESLint flat | `tsc --noEmit` | Vitest |
 
-Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `test`, `test:coverage`, `build`. Turbo orchestrates. `apps/api` additionally has the `db:*` scripts from §2.7.5.
+Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `test`, `test:coverage`, `build`. Turbo orchestrates. `apps/api` additionally has the `db:*` scripts from §2.7.5 and `test:unit` / `test:integration` (Vitest `projects`, §14.2); `test` and `test:coverage` run every project.
 
 ### 7.4 Strict Type Safety & Deprecation Discipline (Non-Negotiable)
 
@@ -854,9 +855,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 32. `components/sections/*`.
 33. Pages: `app/page.tsx`, `app/(marketing)/about/page.tsx`, `app/(marketing)/blog/{page,[slug]/page}.tsx`, `app/projects/{page,[slug]/page}.tsx`, `app/contact/page.tsx`.
 34. `vitest.config.mts`, `playwright.config.ts`, tests.
-35. `Dockerfile`, `.dockerignore` (local dev only — prod is Vercel).
-
-### 8.5 Infra & CI last
+35. `Dockerfile`, `.dockerignore`.
 36. Update `docker-compose.yml` to bring api+site+postgres+redis up.
 37. `.github/workflows/api.yml`, `site.yml`, `shared.yml`, `compose-smoke.yml`, `repo.yml`.
 
@@ -909,6 +908,9 @@ Indexes:
 Base path for the **whole API** (public and admin): `/v1` (versioned). Only the ops routes (`/healthz`, `/readyz`, `/metrics`, `/docs`, `/openapi.json`) are unversioned, as usual for operational endpoints.
 
 ### 11.1 Public read-only endpoints (Redis-cached)
+
+Public reads are limited per IP (`RATE_LIMIT_PUBLIC_READ_PER_MINUTE`). Requests carrying `X-Site-Key: <SITE_API_KEY>` skip that limit: the site's server-side fetches (every visitor, `next build`, revalidation) come from one IP. A missing or wrong key is throttled like any other client.
+
 | Method | Path | Cache TTL |
 |---|---|---|
 | GET | `/v1/projects` | 5 min (query: `page`, `pageSize`, `featured`) |
@@ -1163,13 +1165,17 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 
 ### Phase 8 — apps/site skeleton + tooling
 32. `package.json`, `tsconfig`, `next.config.ts` (`cacheComponents: true` + `cacheLife` profiles `fresh`/`stable`, §2.7.2).
-   - **Done when:** `pnpm --filter @portfolio/site build` succeeds with `cacheComponents: true`; both `cacheLife` profiles appear in the build output (`fresh` 1m, `stable` 5m); tsconfig sets `rootDir` and `types` explicitly; `vitest.config.mts` (not `.ts`).
+   - **Done when:** `pnpm --filter @portfolio/site build` succeeds with `cacheComponents: true`; both `cacheLife` profiles are recorded in `.next/required-server-files.json` under `config.cacheLife` (`fresh` 1m, `stable` 5m; `next build` does not print them); tsconfig sets `rootDir` and `types` explicitly; `vitest.config.mts` (not `.ts`).
 33. `postcss.config.mjs`, `app/globals.css` (`@import "tailwindcss"; @theme {}`).
    - **Done when:** a page using Tailwind classes builds; there is no `tailwind.config.js`.
 34. `eslint.config.mjs` flat with `eslint-config-next` 16.
    - **Done when:** `pnpm --filter @portfolio/site lint` runs without the `getFilename` crash (ESLint 9.39.5, §2.7.13) and ignores `.next/`, `coverage/`, `.vitest/`.
-35. `lib/env.ts`, `lib/api/client.ts` (typed from `@portfolio/shared`) and the per-resource `lib/api/*.ts` read functions (`'use cache'` + `cacheLife` + `cacheTag`).
-   - **Done when:** `env.ts` validates `NEXT_PUBLIC_API_BASE_URL` and `API_BASE_URL`; `apiGet` Zod-parses every response; each `lib/api/*.ts` read starts with `'use cache'` + `cacheLife` + `cacheTag`; no `export const revalidate` anywhere. The site's server-side fetches (every visitor, `next build`, revalidation) reach the api from one IP and would share one `publicReadLimiter` budget (`RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, §11.1); decide with the owner how to exempt or size it (shared-secret header or a higher limit), implement it in `apps/api` (in the same PR or a separate api PR), test it, and document it here and in §16.
+35. `lib/env.ts`, `lib/api/client.ts` (typed from `@portfolio/shared`), the per-resource `lib/api/*.ts` read functions (`'use cache'` + `cacheLife` + `cacheTag`), and loading the repo-root `.env` from `next.config.ts`.
+   - **Done when:** `env.ts` validates `NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL` and the server-only `SITE_API_KEY` (min 16 chars); `apiGet` Zod-parses every response and sends the `X-Site-Key` header from `SITE_API_KEY` (never from the browser; step 35a); each `lib/api/*.ts` read starts with `'use cache'` + `cacheLife` + `cacheTag`; no `export const revalidate` anywhere; `next.config.ts` calls `loadEnvConfig` (`@next/env` 16.3.8, the same version as `next`) on the repo root, so the single root `.env` (§16) feeds `next dev` and `next build` without overriding variables already set (Docker and Vercel injection win).
+35a. `apps/api`: let the site's server-side fetches skip `publicReadLimiter`. They come from one IP (every visitor, `next build`, revalidation) and would share one `RATE_LIMIT_PUBLIC_READ_PER_MINUTE` budget (§11.1). Owner decision (2026-10-06): a shared secret.
+   - **Done when:** `env.ts` requires `SITE_API_KEY` (min 16 chars, every environment); `publicReadLimiter` skips requests whose `X-Site-Key` header (`SITE_KEY_HEADER`, in `packages/shared`) matches it, compared in constant time (`utils/secure-compare.ts`, shared with `metrics-auth`); a missing, wrong, prefixed or suffixed key is throttled like any other client (tested, including the real `publicReadLimiter`); documented in §11.1, §16 and steps 55–56.
+35b. `apps/api` tests: split into Vitest `projects` `unit` and `integration` (§14.2).
+   - **Done when:** `pnpm --filter @portfolio/api test:unit` runs only `tests/unit` without Docker; `test:integration` runs only `tests/integration`; `test` and `test:coverage` run both, so the coverage gate and the `lint typecheck test` criteria are unchanged.
 36. Verify: `pnpm turbo run lint typecheck test --filter=@portfolio/site`.
    - **Done when:** the command exits 0 and the result is pasted in `PROGRESS.md`.
 37. Commit: `feat(site): bootstrap Next.js 16 + Tailwind 4 with quality tooling`.
@@ -1178,6 +1184,7 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 ### Phase 9 — apps/site UI primitives + layout
 38. `components/ui/*`, `components/layout/*`.
    - **Done when:** primitives and layout components render in Vitest + Testing Library tests; the footer renders `/v1/social-links` (visible only); components are accessible (labels, focus order).
+   - **Server-only guard:** add `server-only` (§2.2) and `import 'server-only';` as the first line of `lib/env.ts` and `lib/api/client.ts`, the two modules that read `SITE_API_KEY` and call the api. Every `lib/api/<resource>.ts` read imports `client.ts`, so a Client Component that imports any of them fails `next build` with Next's "cannot be imported from a Client Component" error, instead of crashing in the browser on a missing `SITE_API_KEY`. The npm package throws outside the `react-server` condition, so `vitest.config.mts` aliases `server-only` to an empty module. Check it once with a throwaway Client Component that imports a read (the build must fail), then delete it.
 39. Commit: `feat(site): UI primitives and layout`.
    - **Done when:** merged to `main`.
 
@@ -1192,8 +1199,10 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 ### Phase 11 — apps/site pages (one route per commit)
 43. `/`, `/about`, `/projects`, `/projects/[slug]`, `/blog`, `/blog/[slug]`, `/contact`.
    - **Done when:** each route renders with data from a running api (`/projects` and `/blog` paginate with `page` read inside `<Suspense>` and passed as an argument to the cached function); `generateStaticParams` returns ≥ 1 param.
+   - **Page parameter:** `/projects` and `/blog` parse `searchParams.page` before calling `getProjects` / `getBlogPosts` (`lib/api/projects.ts`, `lib/api/blog.ts`), reusing the shared pagination rule (integer ≥ 1, `paginationQuerySchema`); an invalid value (`abc`, `0`, `-1`, `1.5`) falls back to page 1. The reads keep trusting their `number` argument, so a bad `page` never becomes a cache key or an api 400. Unit-tested with those values and a valid page.
 44. Each page consumes the `lib/api` read functions whose `cacheLife` profile matches §12. **Never** write `export const revalidate` (build error with `cacheComponents`, §2.7.2).
    - **Done when:** `pnpm --filter @portfolio/site build` passes; a grep for `export const revalidate|dynamic|fetchCache` in `apps/site` finds nothing; cache profiles match the §12 table.
+   - **Resilient `apiGet` (`lib/api/client.ts`):** bound each request with `AbortSignal.timeout(...)` (value chosen with the owner when the first page is built) so `next build` and revalidations never hang on an unresponsive api, and turn a 2xx response whose body is not JSON into an `ApiError` (`INVALID_RESPONSE`) instead of a bare `SyntaxError`. Unit tests in `tests/api-client.test.ts` for both (a never-resolving fetch with fake timers; an HTML 200).
 45. Commit pattern: `feat(site): <route>`.
    - **Done when:** one commit per route, each merged to `main`.
 
@@ -1220,9 +1229,9 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** merged to `main`.
 
 ### Phase 14 — Deployment
-55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `RATE_LIMIT_LOGIN_PER_15_MIN`, `RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files.
+55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `SITE_API_KEY` (same value as the site's), `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `RATE_LIMIT_LOGIN_PER_15_MIN`, `RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files. Generate `SITE_API_KEY` and `METRICS_TOKEN` with `openssl rand -hex 32` and never reuse the `changeme-*` placeholders of `.env.example`: they pass the 16-character check, so a known `SITE_API_KEY` would let anyone skip the public read limit and a known `METRICS_TOKEN` would expose `/metrics`.
    - **Done when:** the Railway api is reachable over HTTPS, the migrator ran as the pre-deploy step, `/healthz` is 200, `/metrics` is 401 without the token, and no secret is committed.
-56. **site → Vercel**: connect repo, set `NEXT_PUBLIC_API_BASE_URL` (and `API_BASE_URL`) to the Railway api URL **including the `/v1` suffix**. Cache lifetimes come from the `cacheLife` profiles in `next.config.ts`; nothing to configure per page. The api must be deployed (and seeded) before the first Vercel build (§2.7.2).
+56. **site → Vercel**: connect repo, set `NEXT_PUBLIC_API_BASE_URL` (and `API_BASE_URL`) to the Railway api URL **including the `/v1` suffix**, and `SITE_API_KEY` to the same generated secret the api has (step 55). Cache lifetimes come from the `cacheLife` profiles in `next.config.ts`; nothing to configure per page. The api must be deployed (and seeded) before the first Vercel build (§2.7.2).
    - **Done when:** the Vercel site builds against the live api, serves the pages, and the contact form works cross-origin (CORS accepts only the Vercel origin).
 57. Verify live URLs.
    - **Done when:** every live URL is recorded in `PROGRESS.md` and the README placeholder; no `localhost` in production config.
@@ -1234,6 +1243,8 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
    - **Done when:** all five workflows exist and run on `pull_request` and `push` to `main`; `repo.yml` fails a non-conventional PR title and a planted fake secret.
 60. Each: `format-check` → `lint` → `typecheck` → `test` → `build` → `image` (api only, GHCR, main).
    - **Done when:** each package workflow runs format-check → lint → typecheck → test → build; the api workflow builds and pushes the image to GHCR only on `main` and runs Trivy.
+   - **Test jobs (api):** run `test:unit` and `test:integration` as separate parallel jobs (integration needs Docker and is slower) so a failure names its layer, and measure the coverage gate (§14.2, ≥ 75 %) on the full `test:coverage` run, because the threshold counts unit and integration together. Declare `test:unit` and `test:integration` in `turbo.json` (`dependsOn: ["^build"]`, `outputs: [".vitest"]`) so `shared` is built first and results are cached; `apps/site` joins when it gains a second Vitest project (Phase 9) or Playwright E2E (§14.3).
+   - **Integration retries:** the integration project is the only one that has flaked (Testcontainers startup and shutdown under load; supertest ports colliding with other local listeners, see `PROGRESS.md` Notes of 2026-10-06). In CI, allow a bounded Vitest `retry` (for example 2) on that project only, never locally, so a flake does not block a PR while a real failure still fails after the retries.
 61. Compose smoke: bring stack up, hit `/healthz`, hit `/v1/projects` returns 200.
    - **Done when:** the compose-smoke job is green: `/healthz` 200 and `/v1/projects` 200.
 62. Commit: `ci: per-package workflows with quality gates`.
@@ -1256,6 +1267,7 @@ Vitest only. Test every Zod schema with valid + invalid samples. Fail-under 90%.
 ### 14.2 apps/api
 - Unit: services + repos with mocked Drizzle + ioredis.
 - Integration: real Express + Drizzle + ioredis against Testcontainers `postgres:18` and `redis:8.10.2`. Supertest issues HTTP requests. Supertest types `res.body` as `any`, which typed ESLint rejects (`no-unsafe-member-access`): parse it with the shared Zod schema before asserting (also what §7.4 requires at boundaries).
+- Test layout: `apps/api/vitest.config.ts` defines two inline Vitest `projects` (they inherit the root `env` and `coverage`): `unit` (`tests/unit`, no Docker, seconds) and `integration` (`tests/integration`, Testcontainers). Scripts: `test:unit` = `vitest run --project unit`, `test:integration` = `vitest run --project integration`; `test` and `test:coverage` run both, so the coverage gate and the `lint typecheck test` done-when criteria are unchanged. `apps/site` stays a single project until Phase 9 adds jsdom component tests (a second `projects` entry); Playwright E2E runs from its own script (§14.3), never from `test`.
 - Coverage gate: 75% line.
 
 ### 14.3 apps/site
@@ -1324,11 +1336,15 @@ CORS_ORIGIN=http://localhost:3000
 RATE_LIMIT_CONTACT_PER_HOUR=5
 RATE_LIMIT_ANALYTICS_PER_MINUTE=60
 RATE_LIMIT_LOGIN_PER_15_MIN=10      # admin login attempts per IP per 15 min
-RATE_LIMIT_PUBLIC_READ_PER_MINUTE=120 # public GET requests per IP per minute
+# Public GET requests per IP per minute. Requests with the site's X-Site-Key (SITE_API_KEY) skip it.
+RATE_LIMIT_PUBLIC_READ_PER_MINUTE=120
 LOG_LEVEL=info
 IP_HASH_SALT=changeme-long-random
 # Bearer token required by GET /metrics. Mandatory when NODE_ENV=production.
 METRICS_TOKEN=changeme-long-random-token
+# Shared secret (min 16 chars) the site sends in the X-Site-Key header on server-side fetches so they
+# skip the public read rate limit. Set the same value in apps/site; never expose it to the browser.
+SITE_API_KEY=changeme-long-random-site-key
 DOTENV_QUIET=true
 
 # apps/site
