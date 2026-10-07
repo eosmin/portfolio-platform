@@ -14,6 +14,10 @@ export default function RootLayout({ children }: { children: ReactNode }): React
   return (
     <html lang="en">
       <body className="flex min-h-screen flex-col font-sans text-neutral-900">
+        {/* Reveal animations start hidden; without JS they never run, so show the content. */}
+        <noscript>
+          <style>{'[data-reveal]{opacity:1!important;transform:none!important}'}</style>
+        </noscript>
         <Header />
         <main
           id="main"
