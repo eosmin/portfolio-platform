@@ -1,0 +1,21 @@
+# Shared by apps/api and apps/site: both images build with the repo root as context.
+.git
+.github
+.husky
+.claude
+.code-review-graph
+.turbo
+**/node_modules
+**/dist
+**/.next
+**/.vitest
+**/coverage
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+**/next-env.d.ts
+.env
+.env.*
+!.env.example
+docs
+**/*.md

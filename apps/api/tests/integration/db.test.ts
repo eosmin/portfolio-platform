@@ -109,4 +109,20 @@ describe('database', () => {
     );
     expect(stored.rows[0]?.password_hash).toBe('$2b$12$rotated');
   });
+
+  it('with onlyIfEmpty keeps edited content, and seeds when every content table is empty', async () => {
+    await database.execute(sql`UPDATE projects SET title = 'Edited by the owner'`);
+    await seedDatabase(database, { admin: ADMIN, includeDemoData: true, onlyIfEmpty: true });
+    const edited = await database.execute<{ n: string }>(
+      sql`SELECT count(*)::text AS n FROM projects WHERE title = 'Edited by the owner'`,
+    );
+    expect(Number(edited.rows[0]?.n)).toBe(2);
+
+    await database.execute(
+      sql`TRUNCATE projects, blog_posts, skills, languages, certifications, experience_items, profile_details, social_links`,
+    );
+    await seedDatabase(database, { admin: ADMIN, includeDemoData: true, onlyIfEmpty: true });
+    expect(await count('projects')).toBe(2);
+    expect(await count('profile_details')).toBe(demoProfileDetails.length);
+  });
 });
