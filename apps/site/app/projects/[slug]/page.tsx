@@ -8,6 +8,10 @@ import { Prose } from '../../../components/ui/prose';
 import { getProject, getProjects } from '../../../lib/api/projects';
 import { slugParams } from '../../../lib/static-params';
 
+// 44 px tall for touch; the row is a wrapping flex container, so the height never stretches a text line.
+const EXTERNAL_LINK =
+  'inline-flex min-h-11 items-center text-accent underline underline-offset-4 hover:no-underline';
+
 interface ProjectPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -52,13 +56,13 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
         ))}
       </ul>
       {project.repoUrl || project.demoUrl ? (
-        <p className="flex gap-4 text-sm">
+        <p className="flex flex-wrap items-center gap-x-4 text-sm">
           {project.repoUrl ? (
             <a
               href={project.repoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline"
+              className={EXTERNAL_LINK}
             >
               Source code
             </a>
@@ -68,7 +72,7 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
               href={project.demoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline"
+              className={EXTERNAL_LINK}
             >
               Live demo
             </a>

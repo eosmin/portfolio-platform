@@ -4,6 +4,21 @@ import { cx } from '../../lib/cx';
 import { env } from '../../lib/env';
 import { canOptimizeImage } from '../../lib/image-hosts';
 
+/** `sizes` for a cover inside a two-column card grid. */
+export const CARD_COVER_SIZES = '(min-width: 1024px) 480px, (min-width: 640px) 45vw, 100vw';
+
+/**
+ * Index of the first item whose cover will really render (a cover can be missing, or its host not
+ * allow-listed), or -1. That is the one to preload: the first card is not always the one with an image.
+ */
+export function firstRenderableCoverIndex(
+  items: ReadonlyArray<{ coverImage: string | null }>,
+): number {
+  return items.findIndex(
+    (item) => item.coverImage !== null && canOptimizeImage(item.coverImage, env.imageHosts),
+  );
+}
+
 interface CoverImageProps {
   src: string;
   /** Decorative by default: the title next to a cover already says what it is. */

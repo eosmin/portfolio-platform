@@ -1,12 +1,18 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Project } from '@portfolio/shared';
 import { Hero } from '../../components/sections/hero';
-import { CoverImage } from '../../components/ui/cover-image';
+import { Projects } from '../../components/sections/projects';
+import { LIST_FALLBACK_MIN_HEIGHT, ListFallback } from '../../components/ui/list-fallback';
+import { CoverImage, firstRenderableCoverIndex } from '../../components/ui/cover-image';
 import { Prose } from '../../components/ui/prose';
 import { stubBrowser } from '../helpers/browser';
 
 beforeEach(() => {
   stubBrowser(false);
+  document.head.querySelectorAll('link[rel="preload"]').forEach((link) => {
+    link.remove();
+  });
 });
 
 afterEach(() => {
@@ -137,5 +143,86 @@ describe('Prose external links', () => {
     render(<Prose text={`[go](${href})`} />);
     const link = screen.getByRole('link', { name: 'go' });
     expect(link.getAttribute('target') === '_blank').toBe(external);
+  });
+});
+
+const STAMP = '2026-01-01T00:00:00.000Z';
+
+function project(n: number, coverImage: string | null): Project {
+  return {
+    id: `00000000-0000-4000-8000-00000000000${n}`,
+    slug: `p${n}`,
+    title: `p${n}`,
+    description: 'd',
+    body: 'b',
+    repoUrl: null,
+    demoUrl: null,
+    coverImage,
+    tech: [],
+    featured: false,
+    publishedAt: STAMP,
+    createdAt: STAMP,
+    updatedAt: STAMP,
+  };
+}
+
+/** `imagesrcset` of every `<link rel="preload" as="image">` that rendering added to <head>. */
+function preloadedImages(): string[] {
+  return [...document.head.querySelectorAll('link[rel="preload"][as="image"]')].map(
+    (link) => link.getAttribute('imagesrcset') ?? '',
+  );
+}
+
+const cover = (name: string): string => `https://images.example.com/${name}.png`;
+
+describe('list pages', () => {
+  it('preloads only the first cover when asked, with a preload hint for that image', () => {
+    const { container } = render(
+      <Projects projects={[project(1, cover('a')), project(2, cover('b'))]} preloadFirstCover />,
+    );
+    const [first, second] = [...container.querySelectorAll('img')];
+    expect(first?.getAttribute('loading')).not.toBe('lazy');
+    expect(second?.getAttribute('loading')).toBe('lazy');
+    expect(preloadedImages()).toHaveLength(1);
+    expect(preloadedImages()[0]).toContain(encodeURIComponent(cover('a')));
+  });
+
+  it('preloads the first cover that actually renders, not just the first card', () => {
+    const { container } = render(
+      <Projects
+        projects={[
+          project(1, null),
+          project(2, 'https://unknown.example.net/x.png'),
+          project(3, cover('c')),
+        ]}
+        preloadFirstCover
+      />,
+    );
+    expect(container.querySelectorAll('img')).toHaveLength(1);
+    expect(preloadedImages()).toHaveLength(1);
+    expect(preloadedImages()[0]).toContain(encodeURIComponent(cover('c')));
+  });
+
+  it('keeps every cover lazy by default (home page, later list pages)', () => {
+    const { container } = render(<Projects projects={[project(1, cover('a'))]} />);
+    expect(container.querySelector('img')?.getAttribute('loading')).toBe('lazy');
+    expect(preloadedImages()).toHaveLength(0);
+  });
+
+  it('holds space in the list fallback so the footer does not shift', () => {
+    render(<ListFallback>Loading…</ListFallback>);
+    expect(screen.getByRole('status').style.minHeight).toBe(LIST_FALLBACK_MIN_HEIGHT);
+  });
+});
+
+describe('firstRenderableCoverIndex', () => {
+  it.each([
+    [[], -1],
+    [[{ coverImage: null }], -1],
+    [[{ coverImage: 'https://unknown.example.net/x.png' }], -1],
+    [[{ coverImage: null }, { coverImage: cover('a') }], 1],
+    [[{ coverImage: cover('a') }, { coverImage: cover('b') }], 0],
+  ])('%j -> %i', (items, expected) => {
+    expect(firstRenderableCoverIndex(items)).toBe(expected);
   });
 });
