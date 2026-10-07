@@ -67,17 +67,20 @@ services:
     build:
       context: .
       dockerfile: apps/site/Dockerfile
+      args:
+        # Inlined into the bundle at build time; follows the published api port.
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}/v1
+        IMAGE_HOSTS: ${IMAGE_HOSTS:-placehold.co}
     restart: unless-stopped
     # No env_file: the site gets only what it reads, never the api's secrets (JWT, admin hash, database URL).
     environment:
-      # `next build` runs when this container starts (see apps/site/Dockerfile), so the browser URL below
-      # is inlined at that moment. It follows the published api port; server-side reads use the internal name.
+      # IMAGE_HOSTS is a build argument only (baked into the bundle). The browser URL is also read at runtime by lib/env.ts;
+      # server-side reads use the internal name.
       NEXT_PUBLIC_API_BASE_URL: http://localhost:${API_PORT:-4000}/v1
       API_BASE_URL: http://api:4000/v1
       SITE_API_KEY: ${SITE_API_KEY:?set SITE_API_KEY in .env}
-      IMAGE_HOSTS: ${IMAGE_HOSTS:-placehold.co}
       SITE_PORT: 3000
-      # .env says development (for the api); next build fails with it ("useContext" of null while prerendering).
+      # .env says development (for the api); the site must run in production mode.
       NODE_ENV: production
     ports:
       - '${SITE_PORT:-3000}:3000'
@@ -85,7 +88,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      # Healthy only after the start-up `next build` finished and `next start` answers.
+      # Healthy once `next start` answers.
       test:
         [
           'CMD',
@@ -96,7 +99,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 120s
+      start_period: 30s
 
 volumes:
   postgres-data:

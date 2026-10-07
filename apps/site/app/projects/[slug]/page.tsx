@@ -5,8 +5,8 @@ import type { ReactNode } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import { CoverImage } from '../../../components/ui/cover-image';
 import { Prose } from '../../../components/ui/prose';
-import { getProject, getProjects } from '../../../lib/api/projects';
-import { slugParams } from '../../../lib/static-params';
+import { getProject } from '../../../lib/api/projects';
+import { placeholderParams, slugOrNotFound } from '../../../lib/static-params';
 
 // 44 px tall for touch; the row is a wrapping flex container, so the height never stretches a text line.
 const EXTERNAL_LINK =
@@ -16,19 +16,20 @@ interface ProjectPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
-  const { items } = await getProjects(1);
-  return slugParams(items.map((project) => project.slug));
+// Only a placeholder is prerendered, so `next build` needs no api. Every real slug renders per request
+// with `params` awaited outside any <Suspense>, which lets a missing slug answer a real 404.
+export function generateStaticParams(): Array<{ slug: string }> {
+  return placeholderParams();
 }
 
 export async function generateMetadata({ params }: ProjectPageProps): Promise<Metadata> {
-  const project = await getProject((await params).slug);
+  const project = await getProject(await slugOrNotFound(params));
   if (project === null) notFound();
   return { title: project.title, description: project.description };
 }
 
 export default async function ProjectPage({ params }: ProjectPageProps): Promise<ReactNode> {
-  const project = await getProject((await params).slug);
+  const project = await getProject(await slugOrNotFound(params));
   if (project === null) notFound();
   return (
     <article className="space-y-6">

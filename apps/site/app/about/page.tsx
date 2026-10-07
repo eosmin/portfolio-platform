@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { cacheLife } from 'next/cache';
-import type { ReactNode } from 'react';
+import { connection } from 'next/server';
+import { Suspense, type ReactNode } from 'react';
 import { About } from '../../components/sections/about';
 import { Certifications } from '../../components/sections/certifications';
 import { Experience } from '../../components/sections/experience';
 import { Languages } from '../../components/sections/languages';
 import { Skills } from '../../components/sections/skills';
+import { ListFallback } from '../../components/ui/list-fallback';
 import { getCertifications } from '../../lib/api/certifications';
 import { getExperience } from '../../lib/api/experience';
 import { getLanguages } from '../../lib/api/languages';
@@ -14,9 +15,8 @@ import { getSkills } from '../../lib/api/skills';
 
 export const metadata: Metadata = { title: 'About' };
 
-export default async function AboutPage(): Promise<ReactNode> {
-  'use cache';
-  cacheLife('stable');
+async function AboutContent(): Promise<ReactNode> {
+  await connection();
   const [experience, skills, languages, certifications, profile] = await Promise.all([
     getExperience(),
     getSkills(),
@@ -33,5 +33,13 @@ export default async function AboutPage(): Promise<ReactNode> {
       <Languages languages={languages} />
       <Certifications certifications={certifications} now={new Date()} />
     </>
+  );
+}
+
+export default function AboutPage(): ReactNode {
+  return (
+    <Suspense fallback={<ListFallback>Loading…</ListFallback>}>
+      <AboutContent />
+    </Suspense>
   );
 }

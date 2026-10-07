@@ -5,27 +5,28 @@ import type { ReactNode } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import { CoverImage } from '../../../components/ui/cover-image';
 import { Prose } from '../../../components/ui/prose';
-import { getBlogPost, getBlogPosts } from '../../../lib/api/blog';
+import { getBlogPost } from '../../../lib/api/blog';
 import { formatMonthYear } from '../../../lib/format';
-import { slugParams } from '../../../lib/static-params';
+import { placeholderParams, slugOrNotFound } from '../../../lib/static-params';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
-  const { items } = await getBlogPosts(1);
-  return slugParams(items.map((post) => post.slug));
+// Only a placeholder is prerendered, so `next build` needs no api. Every real slug renders per request
+// with `params` awaited outside any <Suspense>, which lets a missing slug answer a real 404.
+export function generateStaticParams(): Array<{ slug: string }> {
+  return placeholderParams();
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const post = await getBlogPost((await params).slug);
+  const post = await getBlogPost(await slugOrNotFound(params));
   if (post === null) notFound();
   return { title: post.title, description: post.excerpt };
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps): Promise<ReactNode> {
-  const post = await getBlogPost((await params).slug);
+  const post = await getBlogPost(await slugOrNotFound(params));
   if (post === null) notFound();
   return (
     <article className="space-y-6">

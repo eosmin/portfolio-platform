@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Footer, FooterSkeleton } from '../../components/layout/footer';
 import { Header } from '../../components/layout/header';
-import { NAV_ITEMS } from '../../components/layout/nav-links';
+import { NAV_ITEMS, NavLinksFallback } from '../../components/layout/nav-links';
 import { SocialLinkList } from '../../components/layout/social-link-list';
 
 const { usePathname, getSocialLinks } = vi.hoisted(() => ({
@@ -12,6 +12,8 @@ const { usePathname, getSocialLinks } = vi.hoisted(() => ({
 }));
 
 vi.mock('next/navigation', () => ({ usePathname }));
+// `connection()` only works inside a request; here it just has to resolve.
+vi.mock('next/server', () => ({ connection: () => Promise.resolve() }));
 vi.mock('../../lib/api/social-links', () => ({ getSocialLinks }));
 // The real SiteName is an async Server Component; jsdom cannot render those.
 vi.mock('../../components/layout/site-name', () => ({
@@ -77,6 +79,16 @@ describe('Header', () => {
       .getAllByRole('link')
       .map((a) => a.textContent);
     expect(labels).toEqual(NAV_ITEMS.map((item) => item.label));
+  });
+
+  it('lists every link without a current page while the pathname streams in', () => {
+    render(<NavLinksFallback />);
+    expect(screen.getAllByRole('link').map((a) => a.textContent)).toEqual(
+      NAV_ITEMS.map((item) => item.label),
+    );
+    expect(screen.getAllByRole('link').filter((a) => a.hasAttribute('aria-current'))).toHaveLength(
+      0,
+    );
   });
 
   it('marks only the current route with aria-current', () => {

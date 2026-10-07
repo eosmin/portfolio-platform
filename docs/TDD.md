@@ -197,7 +197,8 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
     },
   };
   ```
-- **`generateStaticParams` must return at least one param** under Cache Components (build error otherwise). The api must therefore be reachable and seeded when `next build` runs (Vercel build → Railway api). If the list is empty, return a documented placeholder slug that the page maps to `notFound()`.
+- **`next build` must not need the api.** Pages that read the api start their async Server Component with `await connection()` (`next/server`) inside a `<Suspense>` boundary, so the read happens per request and the shell is prerendered without data; each reader still caches at runtime with its `'use cache'` + `cacheLife` profile. `usePathname()` in the header sits in its own `<Suspense>` for the same reason.
+- **`[slug]` routes: real 404 without the api at build time.** Cache Components rejects an empty `generateStaticParams`, and listing real slugs would query the api during `next build`. `generateStaticParams` therefore returns one constant `PLACEHOLDER_SLUG` (`lib/static-params.ts`); `slugOrNotFound(params)` maps it to `notFound()` before any api read, so the build prerenders a not-found page. Real slugs are not prerendered and render on the first request with `params` awaited **outside** any `<Suspense>` (and no `loading.tsx`): Next returns `404` when `notFound()` runs before streaming starts and keeps `200` once streaming has started ([not-found docs](https://nextjs.org/docs/app/api-reference/file-conventions/not-found), [ISR with Cache Components](https://nextjs.org/docs/app/guides/incremental-static-regeneration-cache-components)). Wrapping the page body in `<Suspense>` breaks this: an unknown slug then answers `200` + `noindex`. `/projects?page=N` and `/blog?page=N` read `searchParams` inside `<Suspense>`, so a page beyond the last still answers `200` + `noindex`. Open point for Phase 14: on Vercel confirm the runtime `'use cache'` reads are cached across requests; if not, switch the readers to `'use cache: remote'`.
 - `cacheTag` values (`projects`, `blog`, `skills`, …) allow on-demand `revalidateTag()` from a future admin webhook (v2, out of scope).
 - Turbopack default bundler.
 - 16.3 keeps the Cache Components model above unchanged (checked against the 16.2 docs and the 16.3 release notes; 16.3 also fixes `cacheComponents` + server actions in `standalone` output and TS 6 `baseUrl` / `node10` `moduleResolution` defaults). `next build` type-checks through the `typescript` package, which here is the TypeScript 6 API alias (§2.7.12).
@@ -653,7 +654,6 @@ portfolio-platform/
 │       ├── vitest.config.mts         # .mts: the site is not an ESM package (§2.7.14)
 │       ├── playwright.config.ts
 │       ├── Dockerfile                # only for local; prod = Vercel; build context = repo root
-│       ├── docker-entrypoint.sh      # next build (needs the api), then next start
 │       ├── app/
 │       │   ├── layout.tsx
 │       │   ├── page.tsx              # home
@@ -863,7 +863,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 32. `components/sections/*`.
 33. Pages: `app/page.tsx`, `app/(marketing)/about/page.tsx`, `app/(marketing)/blog/{page,[slug]/page}.tsx`, `app/projects/{page,[slug]/page}.tsx`, `app/contact/page.tsx`.
 34. `vitest.config.mts`, `playwright.config.ts`, tests.
-35. `Dockerfile`, `docker-entrypoint.sh`.
+35. `Dockerfile`.
 36. Update `docker-compose.yml` to bring api+site+postgres+redis up.
 37. `.github/workflows/api.yml`, `site.yml`, `shared.yml`, `compose-smoke.yml`, `repo.yml`.
 
@@ -1012,13 +1012,13 @@ Rendering model: Cache Components (§2.7.2). "Cache profile" = the `cacheLife` p
 
 | Path | Source | Rendering | Cache profile |
 |---|---|---|---|
-| (layout: header/footer) | `/v1/social-links` (visible links; rendered in the footer) | static shell + `'use cache'` data | `stable` |
-| `/` | `/v1/projects?featured=true`, `/v1/skills`, `/v1/github/stats` | prerendered + `'use cache'` | `fresh` |
-| `/about` | `/v1/experience`, `/v1/skills`, `/v1/languages`, `/v1/certifications`, `/v1/profile` | prerendered + `'use cache'` | `stable` |
+| (layout: header/footer) | `/v1/social-links`, `/v1/profile` (name) | static shell, data per request via `connection()` + `'use cache'` reader | `stable` |
+| `/` | `/v1/projects?featured=true`, `/v1/skills`, `/v1/github/stats` | static shell + per-request `connection()` + `'use cache'` readers | `fresh` |
+| `/about` | `/v1/experience`, `/v1/skills`, `/v1/languages`, `/v1/certifications`, `/v1/profile` | static shell + per-request `connection()` + `'use cache'` readers | `stable` |
 | `/projects` | `/v1/projects?page=N` | prerendered + `'use cache'` (`page` from `searchParams`, so pagination is the dynamic part) | `fresh` |
-| `/projects/[slug]` | `/v1/projects/:slug` | prerendered + `generateStaticParams` (≥ 1 param, §2.7.2) | `stable` |
+| `/projects/[slug]` | `/v1/projects/:slug` | placeholder `generateStaticParams`; real slugs render per request, unknown slug → 404 (§2.7.2) | `stable` |
 | `/blog` | `/v1/blog?page=N` | prerendered + `'use cache'` | `fresh` |
-| `/blog/[slug]` | `/v1/blog/:slug` | prerendered + `generateStaticParams` (≥ 1 param, §2.7.2) | `stable` |
+| `/blog/[slug]` | `/v1/blog/:slug` | placeholder `generateStaticParams`; real slugs render per request, unknown slug → 404 (§2.7.2) | `stable` |
 | `/contact` | — | Client form posts to `/v1/contact` | n/a |
 
 Pagination on `/projects` and `/blog`: `searchParams` is runtime data — read it in a component wrapped in `<Suspense>` and pass `page` as an **argument** to the `'use cache'` function (arguments are part of the cache key). Do not read `searchParams` inside a `'use cache'` scope.
@@ -1206,13 +1206,13 @@ Exceptions the owner may request: combine small adjacent phases (0+1, 6+7, 9+10)
 
 ### Phase 11 — apps/site pages (one route per commit)
 43. `/`, `/about`, `/projects`, `/projects/[slug]`, `/blog`, `/blog/[slug]`, `/contact`.
-   - **Done when:** each route renders with data from a running api (`/projects` and `/blog` paginate with `page` read inside `<Suspense>` and passed as an argument to the cached function); `generateStaticParams` returns ≥ 1 param.
+   - **Done when:** each route renders with data from a running api (`/projects` and `/blog` paginate with `page` read inside `<Suspense>` and passed as an argument to the cached function); the `[slug]` routes prerender only a placeholder slug (Phase 13a, §2.7.2).
    - **Page parameter:** `/projects` and `/blog` parse `searchParams.page` before calling `getProjects` / `getBlogPosts` (`lib/api/projects.ts`, `lib/api/blog.ts`), reusing the shared pagination rule (integer ≥ 1, `paginationQuerySchema`); an invalid value (`abc`, `0`, `-1`, `1.5`) falls back to page 1. The reads keep trusting their `number` argument, so a bad `page` never becomes a cache key or an api 400. Unit-tested with those values and a valid page.
 44. Each page consumes the `lib/api` read functions whose `cacheLife` profile matches §12. **Never** write `export const revalidate` (build error with `cacheComponents`, §2.7.2).
    - **Done when:** `pnpm --filter @portfolio/site build` passes; a grep for `export const revalidate|dynamic|fetchCache` in `apps/site` finds nothing; cache profiles match the §12 table.
    - **Not-found travels as a value:** `getProject` and `getBlogPost` return `Project | null` / `BlogPost | null` (`apiGetOrNull` in `client.ts` maps an api 404 to `null`) and the page calls `notFound()`. An error thrown inside a `'use cache'` function is re-created across the cache boundary and loses its `status`, so catching it in the page answers 500 instead of 404.
    - **Missing slug cache:** a detail reader that gets `null` calls `cacheLife('missing')` (30 s revalidate, `expire` ≥ 300 s, defined in `next.config.ts`) instead of `stable`, so a post published after a miss shows up within about a minute. `expire` must stay ≥ 300 s: a shorter profile is "dynamic" and fails the prerender of unlisted slugs.
-   - **Empty content:** `generateStaticParams` goes through `slugParams` (`lib/static-params.ts`); with no content it returns one placeholder param, because Cache Components rejects `[]`. A `page` beyond the last page calls `notFound()`.
+   - **Empty content:** a `page` beyond the last page calls `notFound()`; an empty api renders empty sections.
    - **Markdown bodies:** `body` is rendered with `react-markdown` (§2.7.20) in `components/ui/prose.tsx`: raw HTML and images are not rendered, links to the web open in a new tab. Before step 48a the detail pages showed plain paragraphs.
    - **Resilient `apiGet` (`lib/api/client.ts`):** bound each request (headers and body) with an `AbortController` aborted by a `setTimeout` (not `AbortSignal.timeout`, whose internal timer vitest's fake timers cannot advance; value chosen with the owner when the first page is built) so `next build` and revalidations never hang on an unresponsive api, and turn a 2xx response whose body is not JSON into an `ApiError` (`INVALID_RESPONSE`) instead of a bare `SyntaxError`. Unit tests in `tests/api-client.test.ts` for both (a never-resolving fetch with fake timers; an HTML 200).
 45. Commit pattern: `feat(site): <route>`.
@@ -1246,20 +1246,19 @@ Inserted after Phase 11 (owner request, 2026-10-07): Phases 9–11 ship working,
 ### Phase 13 — Dockerization & local stack
 50. `apps/api/Dockerfile` (build context = repo root, `docker build -f apps/api/Dockerfile .`; multi-stage; `apt-get install python3 make g++` for the bcrypt build stage; `pnpm deploy --prod` copies only production dependencies into the runtime stage). Targets: `runtime` (default, `NODE_ENV=production`) and `development` (keeps devDependencies because `NODE_ENV=development` loads `pino-pretty`; used by compose). `docker-entrypoint.sh` runs `node dist/db/migrate.js`, then `node dist/db/seed.js --if-empty` unless `NODE_ENV=production`, then `exec node dist/main.js`. `--if-empty` seeds the demo content only while every content table is empty, so a restart never undoes edits; `pnpm db:seed` without the flag stays the manual full reset. One root `.dockerignore` serves both images.
    - **Done when:** `docker build` of the api image succeeds; the container starts, `GET /healthz` is 200, and it runs as a non-root user without build tools in the final stage.
-51. `apps/site/Dockerfile` (local dev only; build context = repo root). The image installs dependencies and builds `packages/shared` but does **not** run `next build`: that needs the api reachable **and seeded** (§2.7.2), and `docker compose up` builds every image before it starts any container, so a build-time `next build` can never see the api. `docker-entrypoint.sh` runs `next build` and then `next start` when the container starts, after compose reports the api healthy (`depends_on: condition: service_healthy`). `NEXT_PUBLIC_*` variables are therefore read from the container environment at that moment; no build `ARG` and no `output: 'standalone'`. The api container's entrypoint (step 50) runs `db:migrate` and (not in production) `db:seed` before it listens.
-   - **Known limitation (fix scheduled as Phase 13a, before deployment):** a Docker image should build on a machine with no other service running. The site breaks that rule because its pages are prerendered from the live api. The proper fix is to let pages render and cache on first request instead of at build time, which also removes the api dependency from the CI `site` build job. Scheduled as Phase 13a (steps 54a–54c), before deployment.
-   - **Done when:** `docker build -f apps/site/Dockerfile .` succeeds with no api running, and the container, started after a seeded api, serves `/` with 200.
-52. Update `docker-compose.yml`: `postgres:18`, `redis:8.10.2`, api (target `development`), site. In compose the site container reads the api via `API_BASE_URL=http://api:4000/v1` while the browser uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1` (§16). The site service has no `env_file`: it receives only the variables it reads (`NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `SITE_API_KEY`, `IMAGE_HOSTS`), never the api's secrets. `NEXT_PUBLIC_API_BASE_URL` and the api's `CORS_ORIGIN` are derived from `API_PORT` and `SITE_PORT`, so changing a port in `.env` keeps the browser, CORS and the published ports consistent. The site sets `NODE_ENV=production` itself, because the shared `.env` says `development` for the api and `next build` fails with it. It has a healthcheck that passes once the start-up build is done. pgAdmin is not included (YAGNI).
+51. `apps/site/Dockerfile` (local dev only; build context = repo root). Installs dependencies, builds `packages/shared`, then runs `next build` as the `node` user with `NEXT_PUBLIC_API_BASE_URL` and `IMAGE_HOSTS` as build `ARG`s (both are inlined into the bundle) and a placeholder `SITE_API_KEY` that is only validated; the real secret arrives when the container starts. The build needs no api (Phase 13a), so compose can build it with the rest. No `output: 'standalone'`: the container runs `next start`. The api container's entrypoint (step 50) runs `db:migrate` and (not in production) `db:seed --if-empty` before it listens.
+   - **Done when:** `docker build -f apps/site/Dockerfile --build-arg NEXT_PUBLIC_API_BASE_URL=... .` succeeds with no api running, and the container, started after a seeded api, serves `/` with 200.
+52. Update `docker-compose.yml`: `postgres:18`, `redis:8.10.2`, api (target `development`), site. In compose the site container reads the api via `API_BASE_URL=http://api:4000/v1` while the browser uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1` (§16). The site service has no `env_file`: it receives only the variables it reads (`NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `SITE_API_KEY`, `IMAGE_HOSTS`), never the api's secrets. `NEXT_PUBLIC_API_BASE_URL` and the api's `CORS_ORIGIN` are derived from `API_PORT` and `SITE_PORT`, so changing a port in `.env` keeps the browser, CORS and the published ports consistent. The same two values are passed as build `args`. The site sets `NODE_ENV=production` itself, because the shared `.env` says `development` for the api. It has a healthcheck that passes once `next start` answers. pgAdmin is not included (YAGNI).
    - **Done when:** `docker compose config` is valid; the site service starts only after the api is healthy; compose overrides `DATABASE_URL`/`REDIS_URL`/`API_BASE_URL` with container hostnames.
 53. `docker compose up` brings full stack live.
-   - **Done when:** from a clean clone, `cp .env.example .env && docker compose up` brings up postgres, redis, api and site; `curl localhost:4000/healthz` and `curl localhost:3000` both succeed (the site answers once its start-up `next build` has finished).
+   - **Done when:** from a clean clone, `cp .env.example .env && docker compose up` brings up postgres, redis, api and site; `curl localhost:4000/healthz` and `curl localhost:3000` both succeed.
 54. Commit: `chore(infra): full docker-compose with api, site, postgres, redis`.
    - **Done when:** merged to `main`.
 
 ### Phase 13a — Site builds without the api
-Closes the known limitation of step 51. Plan the approach with the owner before coding: it changes the Phase 11 pages.
-54a. Make `next build` independent of the api: pages render and are cached on first request (Cache Components with a runtime fallback or Suspense boundary) instead of being prerendered from the live api. Re-read §2.7.2 first and update it.
-   - **Done when:** `pnpm --filter @portfolio/site build` succeeds with the api stopped and the database empty, and every route still answers (`/projects/not-found` → 404) once the api is up.
+Closes the known limitation of step 51. Approach agreed with the owner on 2026-10-08.
+54a. Make `next build` independent of the api: pages that read it call `await connection()` inside `<Suspense>` and stream the data per request (readers keep `'use cache'` + `cacheLife`); the `[slug]` routes prerender only `PLACEHOLDER_SLUG` (`lib/static-params.ts`) and await `params` outside `<Suspense>`; the header navigation gets its own `<Suspense>` (§2.7.2).
+   - **Done when:** `pnpm --filter @portfolio/site build` succeeds with the api stopped, and every route answers once the api is up, and an unknown slug answers a real 404 (Playwright `e2e/not-found.spec.ts`).
 54b. Move `next build` back to image build time in `apps/site/Dockerfile` (drop the build-at-start entrypoint, restore the `NEXT_PUBLIC_API_BASE_URL` build `ARG`) and simplify the compose `site` service.
    - **Done when:** `docker build -f apps/site/Dockerfile .` runs `next build` with no api running, and `docker compose up` still brings the full stack live.
 54c. Tests and commit: `refactor(site): build without a running api`.
@@ -1268,8 +1267,8 @@ Closes the known limitation of step 51. Plan the approach with the owner before 
 ### Phase 14 — Deployment
 55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `SITE_API_KEY` (same value as the site's), `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `RATE_LIMIT_LOGIN_PER_15_MIN`, `RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files. Generate `SITE_API_KEY` and `METRICS_TOKEN` with `openssl rand -hex 32` and never reuse the `changeme-*` placeholders of `.env.example`: they pass the 16-character check, so a known `SITE_API_KEY` would let anyone skip the public read limit and a known `METRICS_TOKEN` would expose `/metrics`.
    - **Done when:** the Railway api is reachable over HTTPS, the migrator ran as the pre-deploy step, `/healthz` is 200, `/metrics` is 401 without the token, and no secret is committed.
-56. **site → Vercel**: connect repo, set `NEXT_PUBLIC_API_BASE_URL` (and `API_BASE_URL`) to the Railway api URL **including the `/v1` suffix**, and `SITE_API_KEY` to the same generated secret the api has (step 55). Cache lifetimes come from the `cacheLife` profiles in `next.config.ts`; nothing to configure per page. The api must be deployed (and seeded) before the first Vercel build (§2.7.2).
-   - **Done when:** the Vercel site builds against the live api, serves the pages, and the contact form works cross-origin (CORS accepts only the Vercel origin).
+56. **site → Vercel**: connect repo, set `NEXT_PUBLIC_API_BASE_URL` (and `API_BASE_URL`) to the Railway api URL **including the `/v1` suffix**, and `SITE_API_KEY` to the same generated secret the api has (step 55). Cache lifetimes come from the `cacheLife` profiles in `next.config.ts`; nothing to configure per page. The build no longer needs the api (§2.7.2), but the live api must be up to serve pages.
+   - **Done when:** the Vercel site builds, serves the pages, and the contact form works cross-origin (CORS accepts only the Vercel origin). Also confirm that repeated requests to a page hit the runtime `'use cache'` (otherwise move the readers to `'use cache: remote'`, §2.7.2).
 57. Verify live URLs.
    - **Done when:** every live URL is recorded in `PROGRESS.md` and the README placeholder; no `localhost` in production config.
 58. Commit: `chore(infra): production deployment configs`.
