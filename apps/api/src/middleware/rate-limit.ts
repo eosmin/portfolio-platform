@@ -1,24 +1,35 @@
-import type { RequestHandler } from 'express';
+import type { Request, RequestHandler } from 'express';
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
-import type { ErrorResponse } from '@portfolio/shared';
+import { SITE_KEY_HEADER, type ErrorResponse } from '@portfolio/shared';
 import { env } from '../config/env.js';
+import { safeEqual } from '../utils/secure-compare.js';
 
 interface RateLimitOptions {
   windowMs: number;
   limit: number;
   /** Count only responses with status >= 400 (e.g. failed logins). */
   skipSuccessfulRequests?: boolean;
+  /** Requests for which this returns true bypass the limiter entirely. */
+  skip?: (req: Request) => boolean;
+}
+
+/** True when the request carries the site's shared secret (server-side fetches from apps/site). */
+export function hasSiteKey(req: Request, expected: string = env.SITE_API_KEY): boolean {
+  const received = req.get(SITE_KEY_HEADER);
+  return received !== undefined && safeEqual(received, expected);
 }
 
 export function createRateLimiter({
   windowMs,
   limit,
   skipSuccessfulRequests = false,
+  skip,
 }: RateLimitOptions): RequestHandler {
   return rateLimit({
     windowMs,
     limit,
     skipSuccessfulRequests,
+    ...(skip && { skip }),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     keyGenerator: (req) => ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? ''),
@@ -50,7 +61,9 @@ export const loginLimiter: RequestHandler = createRateLimiter({
   skipSuccessfulRequests: true,
 });
 
+// The site fetches server-side from one IP (every visitor, `next build`, revalidation); it proves itself with SITE_API_KEY.
 export const publicReadLimiter: RequestHandler = createRateLimiter({
   windowMs: 60 * 1000,
   limit: env.RATE_LIMIT_PUBLIC_READ_PER_MINUTE,
+  skip: (req) => hasSiteKey(req),
 });

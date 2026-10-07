@@ -13,6 +13,7 @@ const valid = {
   CORS_ORIGIN: 'http://localhost:3000',
   IP_HASH_SALT: 'a-salt-of-sufficient-length',
   METRICS_TOKEN: 'a-metrics-token-long-enough',
+  SITE_API_KEY: 'a-site-api-key-long-enough',
 };
 
 describe('parseEnv', () => {
@@ -45,6 +46,13 @@ describe('parseEnv', () => {
   it('rejects an invalid variable', () => {
     expect(() => parseEnv({ ...valid, API_PORT: 'abc' })).toThrow(ZodError);
     expect(() => parseEnv({ ...valid, CORS_ORIGIN: 'not-a-url' })).toThrow(ZodError);
+  });
+
+  it('requires SITE_API_KEY, at least 16 characters', () => {
+    const rest: Record<string, string> = { ...valid };
+    delete rest.SITE_API_KEY;
+    expect(() => parseEnv(rest)).toThrow(/SITE_API_KEY/);
+    expect(() => parseEnv({ ...valid, SITE_API_KEY: 'short' })).toThrow(/SITE_API_KEY/);
   });
 
   it('requires METRICS_TOKEN in every environment, at least 16 characters', () => {
