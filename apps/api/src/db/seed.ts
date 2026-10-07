@@ -26,12 +26,26 @@ import {
 export interface SeedOptions {
   admin: { email: string; passwordHash: string };
   includeDemoData: boolean;
+  /** Leave the content alone when any content table already has rows (a restart must not undo edits). */
+  onlyIfEmpty?: boolean;
 }
+
+const contentTables = [
+  projects,
+  blogPosts,
+  skills,
+  languages,
+  certifications,
+  experienceItems,
+  profileDetails,
+  socialLinks,
+];
 
 /**
  * Re-runnable. The admin is upserted by email (the hash is already bcrypt, never hashed here).
  * Demo content has no natural unique key on most tables, so each run replaces it in one
  * transaction; it is skipped in production so curated content is never overwritten.
+ * With `onlyIfEmpty` existing content is never touched, so the container entrypoint can call it on every start.
  */
 export async function seedDatabase(database: Database, options: SeedOptions): Promise<void> {
   const { email, passwordHash } = options.admin;
@@ -43,16 +57,13 @@ export async function seedDatabase(database: Database, options: SeedOptions): Pr
 
     if (!options.includeDemoData) return;
 
-    for (const table of [
-      projects,
-      blogPosts,
-      skills,
-      languages,
-      certifications,
-      experienceItems,
-      profileDetails,
-      socialLinks,
-    ]) {
+    if (options.onlyIfEmpty) {
+      for (const table of contentTables) {
+        if ((await tx.$count(table)) > 0) return;
+      }
+    }
+
+    for (const table of contentTables) {
       await tx.delete(table);
     }
     await tx.insert(projects).values(demoProjects);
@@ -71,6 +82,7 @@ if (import.meta.main) {
     await seedDatabase(db, {
       admin: { email: env.ADMIN_EMAIL, passwordHash: env.ADMIN_PASSWORD_HASH },
       includeDemoData: env.NODE_ENV !== 'production',
+      onlyIfEmpty: process.argv.includes('--if-empty'),
     });
     logger.info('seed applied');
   } catch (error) {
