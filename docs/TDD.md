@@ -556,6 +556,7 @@ portfolio-platform/
 ├── README.md
 ├── PROGRESS.md                        # step-by-step progress log (§13) — the handoff file between sessions
 ├── docker-compose.yml
+├── .dockerignore                 # shared by both images (both build with the repo root as context)
 ├── docker-compose.override.example.yml
 ├── apps/
 │   ├── api/
@@ -563,8 +564,8 @@ portfolio-platform/
 │   │   ├── tsconfig.json
 │   │   ├── eslint.config.mjs
 │   │   ├── vitest.config.ts
-│   │   ├── Dockerfile
-│   │   ├── .dockerignore
+│   │   ├── Dockerfile                # build context = repo root; targets: development (compose), runtime (default)
+│   │   ├── docker-entrypoint.sh      # migrate, seed (not in production), exec node dist/main.js
 │   │   ├── drizzle.config.ts         # drizzle-kit config (postgresql)
 │   │   ├── drizzle/                  # generated SQL migrations (committed)
 │   │   │   ├── 0000_init.sql
@@ -651,8 +652,8 @@ portfolio-platform/
 │       ├── eslint.config.mjs
 │       ├── vitest.config.mts         # .mts: the site is not an ESM package (§2.7.14)
 │       ├── playwright.config.ts
-│       ├── Dockerfile                # only for local; prod = Vercel
-│       ├── .dockerignore
+│       ├── Dockerfile                # only for local; prod = Vercel; build context = repo root
+│       ├── docker-entrypoint.sh      # next build (needs the api), then next start
 │       ├── app/
 │       │   ├── layout.tsx
 │       │   ├── page.tsx              # home
@@ -849,7 +850,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 21. `src/routes/index.ts` (mounts the public routers and `admin/router.ts` under `/v1`; admin lives at `/v1/admin/*`).
 22. `src/config/openapi.ts` (registry + route definitions; needs the modules above), `src/routes/docs.ts` (mounts `/docs` and `/openapi.json`).
 23. `src/app.ts` + `src/main.ts` (Express + middlewares + routes + Prom metrics + error handler; grows from the Phase 2 `/healthz` stub).
-24. `Dockerfile`, `.dockerignore`.
+24. `Dockerfile`, `docker-entrypoint.sh` (the root `.dockerignore` is shared).
 
 ### 8.4 apps/site
 25. `package.json`, `tsconfig.json`, `next.config.ts` (`cacheComponents: true` + `cacheLife` profiles `fresh`/`stable`, §2.7.2).
@@ -862,7 +863,7 @@ Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `tes
 32. `components/sections/*`.
 33. Pages: `app/page.tsx`, `app/(marketing)/about/page.tsx`, `app/(marketing)/blog/{page,[slug]/page}.tsx`, `app/projects/{page,[slug]/page}.tsx`, `app/contact/page.tsx`.
 34. `vitest.config.mts`, `playwright.config.ts`, tests.
-35. `Dockerfile`, `.dockerignore`.
+35. `Dockerfile`, `docker-entrypoint.sh`.
 36. Update `docker-compose.yml` to bring api+site+postgres+redis up.
 37. `.github/workflows/api.yml`, `site.yml`, `shared.yml`, `compose-smoke.yml`, `repo.yml`.
 
@@ -1243,16 +1244,26 @@ Inserted after Phase 11 (owner request, 2026-10-07): Phases 9–11 ship working,
    - **Done when:** all three thresholds are enforced in the Vitest configs (the run fails below them) and merged to `main`.
 
 ### Phase 13 — Dockerization & local stack
-50. `apps/api/Dockerfile` (multi-stage; `apt-get install python3 make g++` for bcrypt build stage; runtime drops build deps).
+50. `apps/api/Dockerfile` (build context = repo root, `docker build -f apps/api/Dockerfile .`; multi-stage; `apt-get install python3 make g++` for the bcrypt build stage; `pnpm deploy --prod` copies only production dependencies into the runtime stage). Targets: `runtime` (default, `NODE_ENV=production`) and `development` (keeps devDependencies because `NODE_ENV=development` loads `pino-pretty`; used by compose). `docker-entrypoint.sh` runs `node dist/db/migrate.js`, then `node dist/db/seed.js` unless `NODE_ENV=production`, then `exec node dist/main.js`. One root `.dockerignore` serves both images.
    - **Done when:** `docker build` of the api image succeeds; the container starts, `GET /healthz` is 200, and it runs as a non-root user without build tools in the final stage.
-51. `apps/site/Dockerfile` (Next standalone output — set `output: 'standalone'` in `next.config.ts`; local dev only). `NEXT_PUBLIC_*` variables are inlined at build time, so the Dockerfile takes `NEXT_PUBLIC_API_BASE_URL` as a build `ARG`. `next build` needs the api reachable **and seeded** (§2.7.2), so compose builds `site` after `api` is healthy, and the api container's entrypoint runs `db:migrate` and then (development only) `db:seed` before it starts listening.
-   - **Done when:** `docker build` of the site image succeeds with `--build-arg NEXT_PUBLIC_API_BASE_URL=...` against a running, seeded api.
-52. Update `docker-compose.yml`: `postgres:18`, `redis:8.10.2`, api, site, optional pgAdmin. In compose the site container reads the api via `API_BASE_URL=http://api:4000/v1` while the browser uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1` (§16).
+51. `apps/site/Dockerfile` (local dev only; build context = repo root). The image installs dependencies and builds `packages/shared` but does **not** run `next build`: that needs the api reachable **and seeded** (§2.7.2), and `docker compose up` builds every image before it starts any container, so a build-time `next build` can never see the api. `docker-entrypoint.sh` runs `next build` and then `next start` when the container starts, after compose reports the api healthy (`depends_on: condition: service_healthy`). `NEXT_PUBLIC_*` variables are therefore read from the container environment at that moment; no build `ARG` and no `output: 'standalone'`. The api container's entrypoint (step 50) runs `db:migrate` and (not in production) `db:seed` before it listens.
+   - **Known limitation (fix scheduled as Phase 13a, before deployment):** a Docker image should build on a machine with no other service running. The site breaks that rule because its pages are prerendered from the live api. The proper fix is to let pages render and cache on first request instead of at build time, which also removes the api dependency from the CI `site` build job. Scheduled as Phase 13a (steps 54a–54c), before deployment.
+   - **Done when:** `docker build -f apps/site/Dockerfile .` succeeds with no api running, and the container, started after a seeded api, serves `/` with 200.
+52. Update `docker-compose.yml`: `postgres:18`, `redis:8.10.2`, api (target `development`), site. In compose the site container reads the api via `API_BASE_URL=http://api:4000/v1` while the browser uses `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000/v1` (§16). The site sets `NODE_ENV=production` itself, because the shared `.env` says `development` for the api and `next build` fails with it. pgAdmin is not included (YAGNI).
    - **Done when:** `docker compose config` is valid; the site service starts only after the api is healthy; compose overrides `DATABASE_URL`/`REDIS_URL`/`API_BASE_URL` with container hostnames.
 53. `docker compose up` brings full stack live.
-   - **Done when:** from a clean clone, `cp .env.example .env && docker compose up` brings up postgres, redis, api and site; `curl localhost:4000/healthz` and `curl localhost:3000` both succeed.
+   - **Done when:** from a clean clone, `cp .env.example .env && docker compose up` brings up postgres, redis, api and site; `curl localhost:4000/healthz` and `curl localhost:3000` both succeed (the site answers once its start-up `next build` has finished).
 54. Commit: `chore(infra): full docker-compose with api, site, postgres, redis`.
    - **Done when:** merged to `main`.
+
+### Phase 13a — Site builds without the api
+Closes the known limitation of step 51. Plan the approach with the owner before coding: it changes the Phase 11 pages.
+54a. Make `next build` independent of the api: pages render and are cached on first request (Cache Components with a runtime fallback or Suspense boundary) instead of being prerendered from the live api. Re-read §2.7.2 first and update it.
+   - **Done when:** `pnpm --filter @portfolio/site build` succeeds with the api stopped and the database empty, and every route still answers (`/projects/not-found` → 404) once the api is up.
+54b. Move `next build` back to image build time in `apps/site/Dockerfile` (drop the build-at-start entrypoint, restore the `NEXT_PUBLIC_API_BASE_URL` build `ARG`) and simplify the compose `site` service.
+   - **Done when:** `docker build -f apps/site/Dockerfile .` runs `next build` with no api running, and `docker compose up` still brings the full stack live.
+54c. Tests and commit: `refactor(site): build without a running api`.
+   - **Done when:** site coverage thresholds still pass, the Playwright E2E passes, and the PR is merged to `main`.
 
 ### Phase 14 — Deployment
 55. **api → Railway**: connect repo, set env vars (`DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `GITHUB_TOKEN`, `GITHUB_USERNAME`, `IP_HASH_SALT`, `METRICS_TOKEN`, `SITE_API_KEY` (same value as the site's), `CORS_ORIGIN` = the Vercel site origin, `RATE_LIMIT_CONTACT_PER_HOUR`, `RATE_LIMIT_ANALYTICS_PER_MINUTE`, `RATE_LIMIT_LOGIN_PER_15_MIN`, `RATE_LIMIT_PUBLIC_READ_PER_MINUTE`, `LOG_LEVEL`, `NODE_ENV=production`). Railway runs **Drizzle migrator** (`node dist/db/migrate.js`) as a release/pre-deploy step against the `drizzle/` SQL files. Generate `SITE_API_KEY` and `METRICS_TOKEN` with `openssl rand -hex 32` and never reuse the `changeme-*` placeholders of `.env.example`: they pass the 16-character check, so a known `SITE_API_KEY` would let anyone skip the public read limit and a known `METRICS_TOKEN` would expose `/metrics`.
