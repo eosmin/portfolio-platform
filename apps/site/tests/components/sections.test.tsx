@@ -8,30 +8,10 @@ import { ContactCta } from '../../components/sections/contact';
 import { Hero } from '../../components/sections/hero';
 import { Projects } from '../../components/sections/projects';
 import { Skills } from '../../components/sections/skills';
+import { stubBrowser } from '../helpers/browser';
 
 const ID = '00000000-0000-4000-8000-000000000001';
 const STAMP = '2026-01-01T00:00:00.000Z';
-
-class ImmediateObserver {
-  constructor(private readonly callback: IntersectionObserverCallback) {}
-  observe(target: Element): void {
-    this.callback(
-      [{ isIntersecting: true, target } as IntersectionObserverEntry],
-      this as unknown as IntersectionObserver,
-    );
-  }
-  unobserve(): void {}
-  disconnect(): void {}
-}
-
-function stubBrowser(reducedMotion: boolean): void {
-  vi.stubGlobal('IntersectionObserver', ImmediateObserver);
-  vi.stubGlobal('matchMedia', (query: string): Partial<MediaQueryList> => ({
-    matches: reducedMotion && query.includes('prefers-reduced-motion'),
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
-  }));
-}
 
 beforeEach(() => stubBrowser(false));
 afterEach(() => {
