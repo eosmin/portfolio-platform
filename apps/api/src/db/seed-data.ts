@@ -10,8 +10,10 @@ import type {
 } from './schema/index.js';
 
 // Clearly fictional demo content: the owner replaces it through the admin API.
-// Cover images are the files in apps/site/public/images, served by the dev site on its default port.
-const DEMO_COVER_BASE = 'http://localhost:3000/images';
+// Demo covers come from a placeholder service because the contract's `httpUrlSchema` rejects hosts
+// without a TLD (so no `localhost`). Colors are the design tokens: dark surface, accent text.
+const demoCover = (label: string): string =>
+  `https://placehold.co/1600x900/18181b/60a5fa/png?text=${encodeURIComponent(label)}`;
 // Certifications deliberately span unrelated issuers and categories: `issuer` is free text.
 
 export const demoProjects: NewProject[] = [
@@ -22,7 +24,7 @@ export const demoProjects: NewProject[] = [
     body: '# Demo Task Board\n\nPlaceholder body rendered as Markdown.',
     repoUrl: 'https://github.com/example/demo-task-board',
     demoUrl: 'https://example.com/demo-task-board',
-    coverImage: `${DEMO_COVER_BASE}/demo-cover-1.png`,
+    coverImage: demoCover('Demo Task Board'),
     tech: ['TypeScript', 'PostgreSQL'],
     featured: true,
     publishedAt: new Date('2026-01-15T12:00:00Z'),
@@ -32,7 +34,7 @@ export const demoProjects: NewProject[] = [
     title: 'Demo CLI Tool',
     description: 'Second sample project, not featured.',
     body: '# Demo CLI Tool\n\nPlaceholder body rendered as Markdown.',
-    coverImage: `${DEMO_COVER_BASE}/demo-cover-2.png`,
+    coverImage: demoCover('Demo CLI Tool'),
     tech: ['Node.js'],
     featured: false,
     publishedAt: new Date('2025-11-02T12:00:00Z'),
@@ -45,7 +47,7 @@ export const demoBlogPosts: NewBlogPost[] = [
     title: 'Hello, world',
     excerpt: 'First sample post.',
     body: '# Hello, world\n\nPlaceholder post body.',
-    coverImage: `${DEMO_COVER_BASE}/demo-cover-3.png`,
+    coverImage: demoCover('Hello, world'),
     tags: ['meta'],
     publishedAt: new Date('2026-02-01T12:00:00Z'),
   },
