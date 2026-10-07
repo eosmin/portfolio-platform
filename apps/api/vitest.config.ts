@@ -2,7 +2,12 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['tests/**/*.test.ts'],
+    // Inline projects inherit `env` and `coverage` from this root config (Vitest 5).
+    projects: [
+      { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
+      // Starts Testcontainers: needs Docker.
+      { test: { name: 'integration', include: ['tests/integration/**/*.test.ts'] } },
+    ],
     env: {
       NODE_ENV: 'test',
       // Port 1 refuses connections immediately: a unit test that touches the DB fails fast instead of hanging.
@@ -16,6 +21,7 @@ export default defineConfig({
       CORS_ORIGIN: 'http://localhost:3000',
       IP_HASH_SALT: 'test-ip-hash-salt-16',
       METRICS_TOKEN: 'test-metrics-token-16',
+      SITE_API_KEY: 'test-site-api-key-16',
     },
     coverage: {
       provider: 'v8',
