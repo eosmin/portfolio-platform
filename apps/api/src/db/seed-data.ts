@@ -21,7 +21,7 @@ export const demoProjects: NewProject[] = [
     slug: 'demo-task-board',
     title: 'Demo Task Board',
     description: 'Sample project used to exercise the portfolio API and site.',
-    body: '# Demo Task Board\n\nPlaceholder body rendered as Markdown.',
+    body: 'A sample project used to exercise the portfolio API and site.\n\n## What it shows\n\n- Typed contracts shared by the api and the site\n- A **Markdown** body rendered on the server\n- Links such as [the repository](https://github.com/example/demo-task-board)\n\n### Run it\n\n```bash\npnpm install\npnpm dev\n```\n\n> Placeholder content: replace it through the admin API.',
     repoUrl: 'https://github.com/example/demo-task-board',
     demoUrl: 'https://example.com/demo-task-board',
     coverImage: demoCover('Demo Task Board'),
@@ -107,6 +107,8 @@ export const demoProfileDetails: NewProfileDetail[] = [
   },
   { key: 'location', value: 'Mexico City', group: 'basics', order: 2 },
   { key: 'available_for', value: 'Full-time / Contract', group: 'basics', order: 3 },
+  // Site-relative path under apps/site/public; replace it with the real photo in the admin.
+  { key: 'photo', value: '/images/profile-placeholder.png', group: 'basics', order: 4 },
 ];
 
 export const demoSocialLinks: NewSocialLink[] = [

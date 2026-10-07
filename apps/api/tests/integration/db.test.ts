@@ -80,9 +80,9 @@ describe('database', () => {
     expect(await count('projects')).toBe(2);
     expect(await count('profile_details')).toBe(demoProfileDetails.length);
     const profileKeys = await database.execute<{ key: string }>(
-      sql`SELECT key FROM profile_details WHERE key IN ('name', 'headline', 'location', 'available_for')`,
+      sql`SELECT key FROM profile_details WHERE key IN ('name', 'headline', 'location', 'available_for', 'photo')`,
     );
-    expect(profileKeys.rows).toHaveLength(4);
+    expect(profileKeys.rows).toHaveLength(5);
     const covers = await database.execute<{ n: string }>(
       sql`SELECT (SELECT count(*) FROM projects WHERE cover_image IS NOT NULL) + (SELECT count(*) FROM blog_posts WHERE cover_image IS NOT NULL) AS n`,
     );
