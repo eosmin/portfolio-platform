@@ -2,6 +2,7 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../../src/db/index.js';
+import { demoProfileDetails } from '../../src/db/seed-data.js';
 
 const ADMIN = { email: 'admin@example.com', passwordHash: '$2b$12$already-a-bcrypt-hash' };
 
@@ -77,6 +78,15 @@ describe('database', () => {
 
     expect(await count('admin_users')).toBe(1);
     expect(await count('projects')).toBe(2);
+    expect(await count('profile_details')).toBe(demoProfileDetails.length);
+    const profileKeys = await database.execute<{ key: string }>(
+      sql`SELECT key FROM profile_details WHERE key IN ('name', 'headline', 'location', 'available_for')`,
+    );
+    expect(profileKeys.rows).toHaveLength(4);
+    const covers = await database.execute<{ n: string }>(
+      sql`SELECT (SELECT count(*) FROM projects WHERE cover_image IS NOT NULL) + (SELECT count(*) FROM blog_posts WHERE cover_image IS NOT NULL) AS n`,
+    );
+    expect(Number(covers.rows[0]?.n)).toBe(3);
     const issuers = await database.execute<{ n: string }>(
       sql`SELECT count(DISTINCT issuer)::text AS n FROM certifications`,
     );
