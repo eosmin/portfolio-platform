@@ -12,7 +12,7 @@ export default function NotFound(): ReactNode {
       <h1 id="not-found-heading" className="text-4xl font-bold tracking-tight">
         Page not found
       </h1>
-      <p className="max-w-xl text-neutral-600">
+      <p className="max-w-xl text-fg-muted">
         The page you are looking for does not exist or has moved.
       </p>
       <ButtonLink href="/">Back to home</ButtonLink>

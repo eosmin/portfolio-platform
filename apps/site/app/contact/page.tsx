@@ -11,7 +11,7 @@ export default function ContactPage(): ReactNode {
       <h1 id="contact-heading" className="text-4xl font-bold tracking-tight">
         Contact
       </h1>
-      <p className="max-w-xl text-neutral-600">Send a message and I will get back to you.</p>
+      <p className="max-w-xl text-fg-muted">Send a message and I will get back to you.</p>
       {/* The validated public URL; the browser posts straight to the api. */}
       <ContactForm apiBaseUrl={env.NEXT_PUBLIC_API_BASE_URL} />
     </section>

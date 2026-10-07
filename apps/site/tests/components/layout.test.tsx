@@ -58,6 +58,18 @@ describe('Header', () => {
     expect(current.map((a) => a.textContent)).toEqual(['Projects']);
   });
 
+  it('styles the current link with the accent color and an underline, others muted', () => {
+    usePathname.mockReturnValue('/projects');
+    render(<Header />);
+    const links = screen.getAllByRole('link');
+    const active = links.find((a) => a.textContent === 'Projects');
+    const other = links.find((a) => a.textContent === 'Blog');
+    expect(active?.className).toContain('text-accent');
+    expect(active?.className).toContain('underline');
+    expect(other?.className).toContain('text-fg-muted');
+    expect(other?.className).not.toContain('underline');
+  });
+
   it('marks Home only on the root path', () => {
     render(<Header />);
     const current = screen

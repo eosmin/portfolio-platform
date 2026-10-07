@@ -31,7 +31,7 @@ export default async function ProjectPage({ params }: ProjectPageProps): Promise
         ← All projects
       </Link>
       <h1 className="text-4xl font-bold tracking-tight">{project.title}</h1>
-      <p className="text-lg text-neutral-600">{project.description}</p>
+      <p className="text-lg text-fg-muted">{project.description}</p>
       <ul aria-label="Technologies" className="flex flex-wrap gap-2">
         {project.tech.map((tech) => (
           <li key={tech}>

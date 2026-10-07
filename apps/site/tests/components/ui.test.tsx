@@ -44,7 +44,7 @@ describe('Button', () => {
       </Button>,
     );
     const { className } = screen.getByRole('button', { name: 'Go' });
-    expect(className).toContain('border-neutral-300');
+    expect(className).toContain('border-border-strong');
     expect(className).toContain('extra');
   });
 });
@@ -112,10 +112,10 @@ describe('Input', () => {
     );
     const ok = screen.getByLabelText('Ok').className;
     const bad = screen.getByLabelText('Bad').className;
-    expect(ok).toContain('border-neutral-300');
-    expect(ok).not.toContain('border-red-600');
-    expect(bad).toContain('border-red-600');
-    expect(bad).not.toContain('border-neutral-300');
+    expect(ok).toContain('border-border-strong');
+    expect(ok).not.toContain('border-danger');
+    expect(bad).toContain('border-danger');
+    expect(bad).not.toContain('border-border-strong');
   });
 
   it('gives every input a unique id', () => {

@@ -4,7 +4,7 @@ import { cx } from '../../lib/cx';
 export function Card({ className, ...rest }: ComponentPropsWithoutRef<'article'>): ReactNode {
   return (
     <article
-      className={cx('rounded-lg border border-neutral-200 bg-white p-6 shadow-sm', className)}
+      className={cx('rounded-lg border border-border bg-surface p-6 shadow-sm', className)}
       {...rest}
     />
   );

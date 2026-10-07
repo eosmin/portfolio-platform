@@ -51,7 +51,7 @@ export function SocialLinkList({ links }: { links: readonly SocialLink[] }): Rea
             <a
               href={link.url}
               {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-              className="inline-flex items-center gap-2 rounded-md text-sm text-neutral-600 hover:text-neutral-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+              className="inline-flex items-center gap-2 rounded-md text-sm text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <Icon aria-hidden="true" size={16} />
               {link.label || PLATFORM_LABELS[link.platform]}

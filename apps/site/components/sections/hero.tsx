@@ -14,7 +14,7 @@ export function Hero({ name, headline, children }: HeroProps): ReactNode {
         <h1 id="hero-heading" className="text-4xl font-bold tracking-tight sm:text-6xl">
           {name}
         </h1>
-        <p className="max-w-2xl text-lg text-neutral-600">{headline}</p>
+        <p className="max-w-2xl text-lg text-fg-muted">{headline}</p>
         {children ? <div className="flex flex-wrap gap-3">{children}</div> : null}
       </Reveal>
     </section>

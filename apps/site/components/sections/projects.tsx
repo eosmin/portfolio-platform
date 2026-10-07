@@ -16,7 +16,7 @@ export function Projects({
   return (
     <Section id="projects" title={title}>
       {projects.length === 0 ? (
-        <p className="text-neutral-600">No projects yet.</p>
+        <p className="text-fg-muted">No projects yet.</p>
       ) : (
         <RevealList className="grid gap-6 sm:grid-cols-2">
           {projects.map((project) => (
@@ -27,7 +27,7 @@ export function Projects({
                     {project.title}
                   </Link>
                 </h3>
-                <p className="text-neutral-600">{project.description}</p>
+                <p className="text-fg-muted">{project.description}</p>
                 <ul aria-label="Technologies" className="mt-auto flex flex-wrap gap-2">
                   {project.tech.map((tech) => (
                     <li key={tech}>

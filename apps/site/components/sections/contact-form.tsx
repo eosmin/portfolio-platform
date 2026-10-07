@@ -66,7 +66,7 @@ export function ContactForm({ apiBaseUrl }: { apiBaseUrl: string }): ReactNode {
         {...(errors.email ? { error: errors.email } : {})}
       />
       <div className="flex flex-col gap-1">
-        <label htmlFor="contact-message" className="text-sm font-medium text-neutral-900">
+        <label htmlFor="contact-message" className="text-sm font-medium text-fg">
           Message
         </label>
         <textarea
@@ -75,10 +75,10 @@ export function ContactForm({ apiBaseUrl }: { apiBaseUrl: string }): ReactNode {
           rows={6}
           aria-invalid={errors.message ? true : undefined}
           aria-describedby={errors.message ? 'contact-message-error' : undefined}
-          className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+          className="rounded-md border border-border-strong px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         />
         {errors.message ? (
-          <p id="contact-message-error" className="text-sm text-red-700">
+          <p id="contact-message-error" className="text-sm text-danger">
             {errors.message}
           </p>
         ) : null}
@@ -90,7 +90,7 @@ export function ContactForm({ apiBaseUrl }: { apiBaseUrl: string }): ReactNode {
       </div>
       <p role="status" className="text-sm">
         {status.kind === 'sent' ? 'Message sent. Thank you!' : null}
-        {status.kind === 'error' ? <span className="text-red-700">{status.detail}</span> : null}
+        {status.kind === 'error' ? <span className="text-danger">{status.detail}</span> : null}
       </p>
     </form>
   );

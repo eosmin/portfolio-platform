@@ -32,7 +32,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps): Promi
         ← All posts
       </Link>
       <h1 className="text-4xl font-bold tracking-tight">{post.title}</h1>
-      <time dateTime={post.publishedAt} className="block text-sm text-neutral-500">
+      <time dateTime={post.publishedAt} className="block text-sm text-fg-muted">
         {formatMonthYear(post.publishedAt)}
       </time>
       <ul aria-label="Tags" className="flex flex-wrap gap-2">

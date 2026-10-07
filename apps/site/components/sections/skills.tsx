@@ -16,7 +16,7 @@ export function Skills({ skills }: { skills: readonly Skill[] }): ReactNode {
       <div className="grid gap-6 sm:grid-cols-2">
         {groups.map(([category, items]) => (
           <div key={category}>
-            <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
+            <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-fg-muted">
               {category}
             </h3>
             <ul className="space-y-2">

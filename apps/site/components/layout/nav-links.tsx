@@ -30,10 +30,10 @@ export function NavLinks(): ReactNode {
                 href={href}
                 aria-current={active ? 'page' : undefined}
                 className={cx(
-                  'rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900',
+                  'rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                   active
-                    ? 'bg-neutral-100 text-neutral-900'
-                    : 'text-neutral-600 hover:text-neutral-900',
+                    ? 'text-accent underline underline-offset-4'
+                    : 'text-fg-muted hover:text-fg',
                 )}
               >
                 {label}

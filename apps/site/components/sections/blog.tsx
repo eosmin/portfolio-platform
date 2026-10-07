@@ -17,13 +17,13 @@ export function Blog({
   return (
     <Section id="blog" title={title}>
       {posts.length === 0 ? (
-        <p className="text-neutral-600">No posts yet.</p>
+        <p className="text-fg-muted">No posts yet.</p>
       ) : (
         <RevealList className="grid gap-6 sm:grid-cols-2">
           {posts.map((post) => (
             <RevealItem key={post.id}>
               <Card className="flex h-full flex-col gap-3">
-                <time dateTime={post.publishedAt} className="text-sm text-neutral-500">
+                <time dateTime={post.publishedAt} className="text-sm text-fg-muted">
                   {formatMonthYear(post.publishedAt)}
                 </time>
                 <h3 className="text-lg font-semibold">
@@ -31,7 +31,7 @@ export function Blog({
                     {post.title}
                   </Link>
                 </h3>
-                <p className="text-neutral-600">{post.excerpt}</p>
+                <p className="text-fg-muted">{post.excerpt}</p>
                 <ul aria-label="Tags" className="mt-auto flex flex-wrap gap-2">
                   {post.tags.map((tag) => (
                     <li key={tag}>

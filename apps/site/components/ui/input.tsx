@@ -20,7 +20,7 @@ export function Input({
   const describedByIds = cx(describedBy, error && errorId) || undefined;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-neutral-900">
+      <label htmlFor={id} className="text-sm font-medium text-fg">
         {label}
       </label>
       <input
@@ -29,13 +29,13 @@ export function Input({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedByIds}
         className={cx(
-          'rounded-md border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900',
-          error ? 'border-red-600' : 'border-neutral-300',
+          'rounded-md border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
+          error ? 'border-danger' : 'border-border-strong',
           className,
         )}
       />
       {error ? (
-        <p id={errorId} className="text-sm text-red-700">
+        <p id={errorId} className="text-sm text-danger">
           {error}
         </p>
       ) : null}
