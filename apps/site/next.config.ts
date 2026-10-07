@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
   cacheLife: {
     fresh: { stale: 60, revalidate: 60, expire: 86400 },
     stable: { stale: 300, revalidate: 300, expire: 86400 },
+    // A slug the api does not know yet. `expire` stays >= 300 s: shorter counts as dynamic and breaks prerendering.
+    missing: { stale: 30, revalidate: 30, expire: 600 },
   },
 };
 

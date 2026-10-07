@@ -1,6 +1,6 @@
 import { blogPostSchema, paginatedSchema, type BlogPost, type Paginated } from '@portfolio/shared';
 import { cacheLife, cacheTag } from 'next/cache';
-import { apiGet } from './client';
+import { apiGet, apiGetOrNull } from './client';
 
 export async function getBlogPosts(page: number): Promise<Paginated<BlogPost>> {
   'use cache';
@@ -9,9 +9,12 @@ export async function getBlogPosts(page: number): Promise<Paginated<BlogPost>> {
   return apiGet(paginatedSchema(blogPostSchema), `/blog?page=${page}`);
 }
 
-export async function getBlogPost(slug: string): Promise<BlogPost> {
+/** `null` when no post has that slug. */
+export async function getBlogPost(slug: string): Promise<BlogPost | null> {
   'use cache';
-  cacheLife('stable');
   cacheTag('blog');
-  return apiGet(blogPostSchema, `/blog/${encodeURIComponent(slug)}`);
+  const found = await apiGetOrNull(blogPostSchema, `/blog/${encodeURIComponent(slug)}`);
+  // A missing slug may be published soon; do not keep the 404 for the full 'stable' lifetime.
+  cacheLife(found === null ? 'missing' : 'stable');
+  return found;
 }

@@ -13,7 +13,19 @@ import * as socialLinks from '../lib/api/social-links';
 const { cacheLife, cacheTag } = vi.hoisted(() => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
 
 vi.mock('next/cache', () => ({ cacheLife, cacheTag }));
-vi.mock('../lib/api/client', () => ({ apiGet: vi.fn(() => Promise.resolve('payload')) }));
+vi.mock('../lib/api/client', () => ({
+  apiGet: vi.fn(() => Promise.resolve('payload')),
+  apiGetOrNull: vi.fn(() => Promise.resolve('payload')),
+}));
+
+/** Path passed to the api client by the last read (detail readers use `apiGetOrNull`). */
+function requestedPath(): unknown {
+  const [call] = [
+    ...vi.mocked(client.apiGet).mock.calls,
+    ...vi.mocked(client.apiGetOrNull).mock.calls,
+  ];
+  return call?.[1];
+}
 
 // [read, path it requests, cacheLife profile, cacheTag]
 const readers: [string, () => Promise<unknown>, string, 'fresh' | 'stable', string][] = [
@@ -46,13 +58,14 @@ const readers: [string, () => Promise<unknown>, string, 'fresh' | 'stable', stri
 describe('lib/api reads', () => {
   beforeEach(() => {
     vi.mocked(client.apiGet).mockClear();
+    vi.mocked(client.apiGetOrNull).mockClear();
   });
 
   it.each(readers)(
     '%s requests %s with its cacheLife profile and tag',
     async (_name, read, path, profileName, tag) => {
       await expect(read()).resolves.toBe('payload');
-      expect(vi.mocked(client.apiGet).mock.calls[0]?.[1]).toBe(path);
+      expect(requestedPath()).toBe(path);
       expect(cacheLife).toHaveBeenLastCalledWith(profileName);
       expect(cacheTag).toHaveBeenLastCalledWith(tag);
     },
@@ -60,6 +73,19 @@ describe('lib/api reads', () => {
 
   it('encodes a slug so it cannot escape its path segment', async () => {
     await projects.getProject('../admin');
-    expect(vi.mocked(client.apiGet).mock.calls[0]?.[1]).toBe('/projects/..%2Fadmin');
+    expect(requestedPath()).toBe('/projects/..%2Fadmin');
   });
+
+  it.each([
+    ['getProject', () => projects.getProject('nope'), 'projects'],
+    ['getBlogPost', () => blog.getBlogPost('nope'), 'blog'],
+  ] as const)(
+    '%s does not keep a missing slug for the stable lifetime',
+    async (_name, read, tag) => {
+      vi.mocked(client.apiGetOrNull).mockResolvedValueOnce(null);
+      await expect(read()).resolves.toBeNull();
+      expect(cacheLife).toHaveBeenLastCalledWith('missing');
+      expect(cacheTag).toHaveBeenLastCalledWith(tag);
+    },
+  );
 });
