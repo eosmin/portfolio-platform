@@ -545,7 +545,7 @@ portfolio-platform/
 │       ├── site.yml
 │       ├── shared.yml
 │       ├── compose-smoke.yml
-│       └── repo.yml                   # repo-level gates: PR-title commitlint + gitleaks
+│       └── repo.yml                   # repo-level gates: format:check, PR-title commitlint, gitleaks
 ├── .husky/
 │   ├── pre-commit                     # lint-staged + gitleaks (staged)
 │   └── commit-msg                     # commitlint
@@ -809,7 +809,7 @@ chore: initial project setup
 | apps/site | Prettier | ESLint flat + typescript-eslint + eslint-config-next | `tsc --noEmit` | Vitest + Playwright |
 | packages/shared | Prettier | ESLint flat | `tsc --noEmit` | Vitest |
 
-Uniform scripts: `format`, `format:check`, `lint`, `lint:fix`, `typecheck`, `test`, `test:coverage`, `build`. Turbo orchestrates. `apps/api` additionally has the `db:*` scripts from §2.7.5 and `test:unit` / `test:integration` (Vitest `projects`, §14.2); `test` and `test:coverage` run every project.
+Uniform scripts: `lint`, `lint:fix`, `typecheck`, `test`, `test:coverage`, `build`. Turbo orchestrates. Formatting is repo-wide, so `format` and `format:check` exist only at the root (`prettier` reads one config and one `.prettierignore`, both at the root) and CI runs `format:check` once, in `repo.yml`. `apps/api` additionally has the `db:*` scripts from §2.7.5 and `test:unit` / `test:integration` (Vitest `projects`, §14.2); `test` and `test:coverage` run every project.
 
 ### 7.4 Strict Type Safety & Deprecation Discipline (Non-Negotiable)
 
@@ -1290,10 +1290,10 @@ Closes the known limitation of step 51. Approach agreed with the owner on 2026-1
    - **Done when:** merged to `main`.
 
 ### Phase 15 — CI/CD
-59. `.github/workflows/api.yml`, `site.yml`, `shared.yml`, `compose-smoke.yml`, `repo.yml` (PR-title `commitlint` + `gitleaks`).
-   - **Done when:** all five workflows exist and run on `pull_request` and `push` to `main`; `repo.yml` fails a non-conventional PR title and a planted fake secret.
-60. Each: `format-check` → `lint` → `typecheck` → `test` → `build` → `image` (api only, GHCR, main).
-   - **Done when:** each package workflow runs format-check → lint → typecheck → test → build; the api workflow builds and pushes the image to GHCR only on `main` and runs Trivy.
+59. `.github/workflows/api.yml`, `site.yml`, `shared.yml`, `compose-smoke.yml`, `repo.yml` (`format:check`, PR-title `commitlint` + `gitleaks`).
+   - **Done when:** all five workflows exist and run on `pull_request` and `push` to `main`; `repo.yml` fails a misformatted file, a non-conventional PR title and a planted fake secret.
+60. Each package: `lint` → `typecheck` → `test` → `build` → `image` (api only, GHCR, main); `format-check` runs once for the whole repo in `repo.yml`.
+   - **Done when:** each package workflow runs lint → typecheck → test → build, and `repo.yml` runs `format:check` over the whole repository; the api workflow builds and pushes the image to GHCR only on `main` and runs Trivy.
    - **Test jobs (api):** run `test:unit` and `test:integration` as separate parallel jobs (integration needs Docker and is slower) so a failure names its layer. The coverage gate (§14.2, ≥ 75 %) counts unit and integration together, so each job writes a Vitest blob report with coverage (`--coverage --reporter=default --reporter=blob --outputFile.blob=.vitest/blob/blob-<layer>.json`, with `COVERAGE_PARTIAL=1` so the per-layer run does not enforce the gate) and uploads `.vitest/blob` as an artifact; a third `coverage` job downloads both and runs `vitest --merge-reports --coverage`, which enforces the gate once and runs no test twice. Declare `test:unit` and `test:integration` in `turbo.json` (`dependsOn: ["^build"]`, `outputs: [".vitest"]`, `passThroughEnv: ["COVERAGE_PARTIAL"]`) so `shared` is built first and results are cached; `apps/site` joins when it gains a second Vitest project (Phase 9) or Playwright E2E (§14.3).
    - **Integration retries:** the integration project is the only one that has flaked (Testcontainers startup and shutdown under load; supertest ports colliding with other local listeners, see `PROGRESS.md` Notes of 2026-10-06). In CI, allow a bounded Vitest `retry` (for example 2) on that project only, never locally, so a flake does not block a PR while a real failure still fails after the retries.
 61. Compose smoke: bring stack up, hit `/healthz`, hit `/v1/projects` returns 200.
@@ -1355,12 +1355,13 @@ Vitest only. Test every Zod schema with valid + invalid samples. Fail-under 90%.
 - `pull_request` to `main`
 
 ### 15.2 Jobs per package (uniform)
-1. `format-check`
-2. `lint`
-3. `typecheck`
-4. `test` (with coverage)
-5. `build`
-6. `image` (apps/api only; GHCR; main branch only)
+1. `lint`
+2. `typecheck`
+3. `test` (with coverage)
+4. `build`
+5. `image` (apps/api only; GHCR; main branch only)
+
+Repo-wide, once (`repo.yml`): `format` (`prettier --check .`), `pr-title`, `gitleaks`.
 
 ### 15.3 Compose smoke
 Bring stack up via `docker compose`, wait for `/healthz`, probe `/v1/projects`.
@@ -1446,7 +1447,7 @@ Done = **all** of these are true:
 - [ ] api coverage ≥75%.
 - [ ] site coverage ≥60% overall, `lib/` ≥80%; Playwright E2E green.
 - [ ] shared coverage ≥90%.
-- [ ] CI runs format/lint/typecheck/test/build/image on every PR.
+- [ ] CI runs lint/typecheck/test/build (and image for the api) per package, and `format:check` once for the whole repo (`repo.yml`), on every PR.
 - [ ] Husky + lint-staged + commitlint installed; `repo.yml` runs PR-title commitlint + gitleaks.
 - [ ] `.env.example` lists every required variable; no secrets in git.
 - [ ] All commits follow Conventional Commits.

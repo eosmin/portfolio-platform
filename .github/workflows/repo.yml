@@ -16,6 +16,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Formatting is repo-wide (one Prettier config and one .prettierignore at the root), so it is checked
+  # once here, over every file, instead of once per package.
+  format:
+    # A title or description edit changes no files, so it does not need a new check.
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+
   # The squash merge uses the PR title as the commit message, and no local hook sees it.
   pr-title:
     if: github.event_name == 'pull_request'

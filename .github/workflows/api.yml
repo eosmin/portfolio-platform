@@ -23,7 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      - run: pnpm --filter @portfolio/api format:check
       - run: pnpm turbo run lint typecheck build --filter=@portfolio/api
 
   # Unit and integration run apart so a failure names its layer. Each uploads a blob report with
