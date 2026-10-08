@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   quality:
+    name: site-quality
     runs-on: ubuntu-latest
     env:
       # The build needs no running api (lib/env.ts only validates the shape); these are placeholders.
@@ -29,6 +30,7 @@ jobs:
       - run: pnpm turbo run lint typecheck build --filter=@portfolio/site
 
   test:
+    name: site-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
