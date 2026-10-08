@@ -38,7 +38,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { experienceItems } = await import('../../src/db/schema/index.js');
   await infra.db.delete(experienceItems);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('GET /v1/experience', () => {

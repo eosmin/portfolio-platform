@@ -1,21 +1,19 @@
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database } from '../../src/db/index.js';
 import { demoProfileDetails } from '../../src/db/seed-data.js';
+import { provisionDatabase } from '../helpers/infra.js';
 
 const ADMIN = { email: 'admin@example.com', passwordHash: '$2b$12$already-a-bcrypt-hash' };
 
-let container: StartedPostgreSqlContainer;
 let database: Database;
 let closePool: () => Promise<void>;
 let runMigrations: (db: Database) => Promise<void>;
 let seedDatabase: typeof import('../../src/db/seed.js').seedDatabase;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:18').start();
   // env.ts parses process.env at import time, so the URL must be set before the dynamic imports.
-  process.env.DATABASE_URL = container.getConnectionUri();
+  process.env.DATABASE_URL = await provisionDatabase();
   const dbModule = await import('../../src/db/index.js');
   database = dbModule.db;
   closePool = () => dbModule.pool.end();
@@ -25,7 +23,6 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await closePool();
-  await container.stop();
 });
 
 async function count(table: string): Promise<number> {

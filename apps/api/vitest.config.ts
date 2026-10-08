@@ -5,8 +5,14 @@ export default defineConfig({
     // Inline projects inherit `env` and `coverage` from this root config (Vitest 5).
     projects: [
       { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
-      // Starts Testcontainers: needs Docker.
-      { test: { name: 'integration', include: ['tests/integration/**/*.test.ts'] } },
+      // The global setup starts Testcontainers: needs Docker.
+      {
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          globalSetup: ['tests/global-setup.ts'],
+        },
+      },
     ],
     env: {
       NODE_ENV: 'test',

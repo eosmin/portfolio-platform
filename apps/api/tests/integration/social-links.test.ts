@@ -25,7 +25,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { socialLinks } = await import('../../src/db/schema/index.js');
   await infra.db.delete(socialLinks);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 const link = (platform: 'GITHUB' | 'EMAIL', order: number, visible = true) => ({

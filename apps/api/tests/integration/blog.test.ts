@@ -40,7 +40,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { blogPosts } = await import('../../src/db/schema/index.js');
   await infra.db.delete(blogPosts);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('GET /v1/blog', () => {

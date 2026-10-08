@@ -25,7 +25,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { skills } = await import('../../src/db/schema/index.js');
   await infra.db.delete(skills);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('GET /v1/skills', () => {

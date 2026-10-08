@@ -44,7 +44,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { certifications } = await import('../../src/db/schema/index.js');
   await infra.db.delete(certifications);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('GET /v1/certifications', () => {

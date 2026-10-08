@@ -119,7 +119,7 @@ beforeEach(async () => {
     infra.db.delete(schema.socialLinks),
     infra.db.delete(schema.contactMessages),
   ]);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('JWT guard', () => {
