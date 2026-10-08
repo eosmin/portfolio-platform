@@ -5,6 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "env": ["SITE_API_KEY", "API_BASE_URL", "IMAGE_HOSTS"],
       "outputs": ["dist", ".next", "!.next/cache", "!.next/dev"]
     },
     "typecheck": {

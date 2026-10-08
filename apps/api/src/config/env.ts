@@ -37,7 +37,8 @@ export type Env = z.infer<typeof envSchema>;
 
 /** Throws a ZodError naming every missing/invalid variable; issues never echo values. */
 export function parseEnv(source: NodeJS.ProcessEnv): Env {
-  return envSchema.parse(source);
+  // Hosts such as Railway inject PORT; API_PORT, when set, wins.
+  return envSchema.parse({ ...source, API_PORT: source.API_PORT ?? source.PORT });
 }
 
 export const env: Env = parseEnv(process.env);
