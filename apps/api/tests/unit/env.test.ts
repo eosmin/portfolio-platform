@@ -43,6 +43,11 @@ describe('parseEnv', () => {
     expect(() => parseEnv(rest)).toThrow(/DATABASE_URL/);
   });
 
+  it('falls back to PORT when API_PORT is unset, and prefers API_PORT', () => {
+    expect(parseEnv({ ...valid, PORT: '8080' }).API_PORT).toBe(8080);
+    expect(parseEnv({ ...valid, API_PORT: '5000', PORT: '8080' }).API_PORT).toBe(5000);
+  });
+
   it('rejects an invalid variable', () => {
     expect(() => parseEnv({ ...valid, API_PORT: 'abc' })).toThrow(ZodError);
     expect(() => parseEnv({ ...valid, CORS_ORIGIN: 'not-a-url' })).toThrow(ZodError);
