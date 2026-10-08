@@ -138,6 +138,31 @@ describe('ContactForm', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('clears a field error as soon as the value is valid, and only that field', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    render(<ContactForm apiBaseUrl="http://api.test/v1" />);
+    fill('', 'not-an-email', 'short');
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe('true');
+    });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'still-not' } });
+    expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBe('true');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ana@example.com' } });
+    await waitFor(() => {
+      expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBeNull();
+    });
+    expect(screen.getByLabelText('Name').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('Message').getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('does not raise an error while typing before the first submit', () => {
+    vi.stubGlobal('fetch', vi.fn());
+    render(<ContactForm apiBaseUrl="http://api.test/v1" />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nope' } });
+    expect(screen.getByLabelText('Email').getAttribute('aria-invalid')).toBeNull();
+  });
+
   it('posts valid input to /contact and confirms', async () => {
     const fetchMock = vi.fn(() => Promise.resolve(new Response(null, { status: 201 })));
     vi.stubGlobal('fetch', fetchMock);

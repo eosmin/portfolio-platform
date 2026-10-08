@@ -17,7 +17,7 @@ Inputs: `ui-ux-pro-max` recommendation (Portfolio Grid pattern, Motion-Driven st
 ## 2. Principles
 
 1. Content first: the page is for reading projects and posts. Decoration never competes with text.
-2. One accent. Blue marks what is interactive (links, primary button, focus ring). Nothing else is colored except status (danger).
+2. One accent. Blue marks what is interactive (links, primary button, focus ring). Nothing else is colored except status (danger, success).
 3. Mono is metadata only: dates, tags, tech badges, labels. Never body text.
 4. Motion explains, it does not decorate: reveal on scroll and the hero entrance only. No parallax. At most 1–2 animated elements per view.
 5. Accessibility is a constraint, not a pass: AA contrast, visible focus, reduced motion, 44 px targets.
@@ -37,6 +37,7 @@ Semantic names only; components never use raw palette classes or hex. Defined in
 | `--color-accent`        | `#1D4ED8` | `#60A5FA` | links, primary button, focus ring                        |
 | `--color-on-accent`     | `#FFFFFF` | `#09090B` | text on the accent background                            |
 | `--color-danger`        | `#B91C1C` | `#F87171` | errors                                                   |
+| `--color-success`       | `#15803D` | `#4ADE80` | confirmations (message sent)                             |
 
 Measured contrast (WCAG ratio; text needs ≥ 4.5, UI parts ≥ 3):
 
@@ -50,6 +51,7 @@ Measured contrast (WCAG ratio; text needs ≥ 4.5, UI parts ≥ 3):
 | accent on surface            | 6.70  | 6.97  |
 | on-accent on accent (button) | 6.70  | 7.83  |
 | danger on surface            | 6.47  | 6.40  |
+| success on surface           | 5.02  | 10.17 |
 | border-strong on bg          | 3.11  | 4.12  |
 | border-strong on surface     | 3.25  | 3.67  |
 
