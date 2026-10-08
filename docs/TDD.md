@@ -1302,6 +1302,13 @@ Closes the known limitation of step 51. Approach agreed with the owner on 2026-1
    - **Done when:** a PR opened from a branch shows all required checks green; squash-merged by the owner.
    - **Owner action after this PR is merged (the agent cannot do it):** once the workflows have run green at least once on a PR, add their job names as **required status checks** to the `main` ruleset (Settings → Rules → `protect-main` → Require status checks; see `docs/BRANCH-PROTECTION.md`). Required checks can only be selected after GitHub has seen them run. The agent lists the exact check names (`<workflow> / <job>`) in the hand-over message and in `PROGRESS.md` under Blockers / open questions until the owner confirms.
 
+### Phase 15a — Unique job names (CI follow-up)
+Found while adding the required checks of step 62: a required status check is matched by **job name**, not by workflow, and `quality` (shared, api, site) and `test` (shared, site) repeat across workflows, so a rule on `quality` cannot tell which one it protects. Runs in the next phase's PR as its own `ci:` commit.
+62a. Give every job a unique name.
+   - **Done when:** each job `name:` is unique across `.github/workflows/*.yml` (for example `shared-quality`, `api-quality`, `site-quality`, `shared-test`, `site-test`); a `grep` of the job names shows no duplicate; the check names in `PROGRESS.md` Blockers use the new names.
+62b. **Owner: add the renamed checks to the `protect-main` ruleset** (a required check is matched by the bare job name, so the entries are `shared-quality`, `api-quality`, `site-quality`, `shared-test`, `site-test`, not `<workflow> / <job>`). The other eight (`api / unit`, `api / integration`, `api / coverage`, `api / image`, `compose-smoke / smoke`, `repo / format`, `repo / pr-title`, `repo / gitleaks`) are already required.
+   - **Done when:** the five renamed checks are required in the ruleset after they have run green once on `main`.
+
 ### Phase 16 — Documentation
 63. README: monorepo diagram, getting started, screenshots, live URLs.
    - **Done when:** README has the architecture diagram, getting-started that works from a clean clone, screenshots, and the live URLs.
