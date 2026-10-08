@@ -19,6 +19,7 @@
   --accent: light-dark(#1d4ed8, #60a5fa);
   --on-accent: light-dark(#ffffff, #09090b);
   --danger: light-dark(#b91c1c, #f87171);
+  --success: light-dark(#15803d, #4ade80);
   --elev-hover: light-dark(0 4px 16px rgb(9 9 11 / 0.08), 0 4px 16px rgb(0 0 0 / 0.5));
 }
 
@@ -56,6 +57,7 @@
   --color-accent: var(--accent);
   --color-on-accent: var(--on-accent);
   --color-danger: var(--danger);
+  --color-success: var(--success);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, monospace;
