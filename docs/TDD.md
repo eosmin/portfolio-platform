@@ -119,6 +119,7 @@ TypeScript 7 ships no compiler API yet, so both are installed side by side exact
 | `@testcontainers/postgresql` | **12.2.0** (dev) |
 | `@testcontainers/redis` | **12.2.0** (dev) |
 | msw (GitHub API mocking, §14.4) | **3.0.1** (dev) |
+| `resend` (contact notification email, §2.7.21) | **6.30.0** |
 
 **`@types/*` (dev dependencies, exact pins):** `@types/node` **24.19.0** (matches Node 24), `@types/express` **5.0.6**, `@types/cors` **2.8.19**, `@types/jsonwebtoken` **9.0.10**, `@types/bcrypt` **6.0.0**, `@types/supertest` **7.2.1**, `@types/swagger-ui-express` **4.1.8** (api); `@types/react` **19.3.0** and `@types/react-dom` **19.3.0** (site).
 
@@ -445,6 +446,15 @@ Non-npm tools (CI/pre-commit only): `gitleaks` 8.30.1 (pre-commit hook + `gitlea
 - Git dependencies on GitHub/GitLab/Bitbucket resolve to the canonical HTTPS URL (the lockfile never records SSH URLs). This project has no git dependencies.
 - Under `engineStrict`, an install fails when an incompatible package is reached through a regular `dependencies` edge (pnpm 11 only warned).
 
+#### 2.7.21 resend 6.30.0 (contact notification email, Phase 17)
+- Node ≥ 20 (we run 24). Picked 6.30.0 (published 2026-09-25, two weeks old at the time of writing); 6.31.x/6.32.x were too new. Re-check `npm view resend time` before pinning anything newer.
+- **Errors are returned, not thrown:** `const { data, error } = await resend.emails.send(...)`. `error` carries `name`, `statusCode` and `message`; a network failure also arrives in `error`. The notifier must test `error` explicitly; a bare `await` without that check silently swallows every failure.
+- Fields are camelCase: `from`, `to`, `subject`, `text`, `replyTo` (not `reply_to`). Send **`text` only**, never `html`: the visitor's message is untrusted and plain text needs no escaping.
+- Per-request options (second argument): `{ idempotencyKey }`. Use the stored message `id`, so a retry after a timeout cannot deliver the notification twice.
+- `from` must be on a domain verified in Resend (SPF + DKIM published). Use a dedicated address (`notifications@eosmin.dev`) that is not the inbox read daily.
+- Create the API key with **Sending access** scoped to the verified domain, not a full-access key.
+- Mock with msw (`POST https://api.resend.com/emails`), the single mocking library of this repo (§2.3); never call Resend from tests.
+
 ---
 
 ## 3. Architecture
@@ -623,7 +633,7 @@ portfolio-platform/
 │   │   │   │   ├── experience/
 │   │   │   │   ├── profile/          # ProfileDetail
 │   │   │   │   ├── social-links/
-│   │   │   │   ├── contact/
+│   │   │   │   ├── contact/          # router, service, repo, notifier (Resend, Phase 17)
 │   │   │   │   ├── github/           # router + service (no repo: no DB table)
 │   │   │   │   ├── analytics/
 │   │   │   │   └── auth/             # admin login
@@ -939,7 +949,7 @@ Public reads are limited per IP (`RATE_LIMIT_PUBLIC_READ_PER_MINUTE`). Requests 
 ### 11.2 Public write
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/v1/contact` | rate-limited 5/h/IP; `201` with no body (§11.6) |
+| POST | `/v1/contact` | rate-limited 5/h/IP; `201` with no body (§11.6); honeypot field `website` (§11.6) |
 | POST | `/v1/analytics/views/:page` | rate-limited 60/min/IP, no request body; `204` with no body; `:page` format validated (§11.6) |
 
 ### 11.3 Admin (JWT-protected, `/v1/admin/*`)
@@ -1001,6 +1011,11 @@ All are defined as Zod schemas in `packages/shared/src/schemas/` (source of trut
 **`POST /v1/analytics/views/:page`** → `204`, no body. `:page` is a lowercase, kebab-case route path without trailing slash (`/`, `/about`, `/blog/my-post`), max 200 characters; clients must URL-encode it (`%2Fblog%2Fmy-post`). Anything else → `400` error envelope, so the table cannot be filled with arbitrary strings. The shared `viewPageSchema` holds the rule.
 
 **`POST /v1/contact`** → `201`, no body (the visitor only needs to know it was received; the message `id` is not exposed). Invalid input → `400`, over the rate limit → `429`, both with the error envelope.
+- **Honeypot:** the body may carry an optional `website` string (`contactSubmissionSchema = contactInputSchema.extend({ website: z.string().max(200).optional() })`, so `ContactInput` and `ContactMessage` stay unchanged). The site renders it as a hidden, off-screen, `tabindex="-1"`, `autocomplete="off"` input that humans never fill. A non-empty value gets the same `201` but **nothing is stored or sent**; the api logs `contact honeypot hit` at `info` (no body, no IP). A bot must not learn that it was caught.
+- **Notification (Phase 17):** after the row is stored, the api emails the owner (`CONTACT_NOTIFY_TO`) from `CONTACT_NOTIFY_FROM` with `Reply-To` = the visitor's email. It never emails the visitor (an open form that mails arbitrary addresses is an abuse vector). The request does **not** wait for the email and never fails because of it: `201` means "stored".
+  - Subject `New message from <name>`, where `name` has control characters (`\r`, `\n`, `\t`, other C0/DEL) replaced by a space and is truncated to 100 characters; body is plain text: name, email, message, UTC timestamp.
+  - Delivery retries inline: up to 3 attempts, waiting 1 s and then 4 s, with `idempotencyKey` = message id. After the last failure the api logs `contact notification failed` at `error` (message id, attempts, provider error name/status; never the message body or the key). A process restart during the retries loses the notification, not the message: it remains in `contact_messages` and `GET /v1/admin/contact`.
+  - No persistent outbox, queue or `notified` column (YAGNI). Revisit when the admin panel needs to show and resend unsent notifications.
 
 **`POST /v1/admin/auth/login`** → `200 { "token": "<jwt>", "expiresIn": 86400 }`, where `expiresIn` is the token lifetime in **seconds** (the api converts `JWT_EXPIRES_IN`, e.g. `24h`, once). Wrong email **or** wrong password → always the same `401` with code `INVALID_CREDENTIALS` (never reveal which one failed).
 
@@ -1293,6 +1308,23 @@ Closes the known limitation of step 51. Approach agreed with the owner on 2026-1
 64. Commit: `docs: complete README with architecture and live URLs`.
    - **Done when:** merged to `main`; every §17 checkbox is ticked in `PROGRESS.md`.
 
+### Phase 17 — Contact notification email (post-launch)
+Owner decision (2026-10-08): runs only after Phases 0–16 are complete and merged. The contact form only stores messages, so nobody is told they exist. Add an owner notification through Resend, a honeypot, and bounded retries. Design in §11.6, library notes in §2.7.21. Steps 65–69 are code (one branch, one PR); 70–71 need the owner's Resend account and DNS (Porkbun) and are verified live.
+65. **Config and notifier.** `RESEND_API_KEY`, `CONTACT_NOTIFY_FROM`, `CONTACT_NOTIFY_TO` in `apps/api/src/config/env.ts` (optional together in development/test, all required with `NODE_ENV=production`, `RESEND_API_KEY` min 1 char, `CONTACT_NOTIFY_TO` a valid email, `CONTACT_NOTIFY_FROM` a non-empty string); `modules/contact/notifier.ts` with a `ContactNotifier` interface (`notify(message): Promise<void>`), a Resend implementation and a no-op implementation used when the variables are unset; `resend` pinned at 6.30.0 in its own `chore(deps)` commit; `.env.example` and `docs/DEPLOYMENT.md` updated.
+   - **Done when:** unit tests cover the env rules (production without any of the three fails naming the variable; development without them passes) and the Resend notifier against an msw mock: it posts `from`, `to`, `replyTo` = visitor email, `text` only, and the `Idempotency-Key` header; a returned `error` makes `notify` reject.
+66. **Sanitization.** Subject and header-bound fields strip control characters and truncate (§11.6); body is plain text.
+   - **Done when:** unit tests: a name containing `\r\nBcc: x@y.z` yields a single-line subject without a newline; a 100+ character name is truncated; the message body is passed through unchanged.
+67. **Send with bounded retry, off the request path.** `contact` service calls the notifier after `repo.create`, without awaiting it; `repo.create` returns the new row `id` (needed for the idempotency key); up to 3 attempts, delays 1 s and 4 s, the sleep function is injected so tests do not wait; final failure is logged and swallowed.
+   - **Done when:** unit tests with a fake notifier and a fake sleep: first-try success sends once; fail-fail-success sends three times and logs nothing at `error`; three failures log one `error` line and `submit` still resolves; `submit` resolves before a slow notifier finishes.
+68. **Honeypot.** `contactSubmissionSchema` in `packages/shared` (with tests), used by the router and registered in the OpenAPI document; `apps/site` `ContactForm` renders the hidden `website` input and posts it; a filled honeypot returns `201`, stores nothing, sends nothing.
+   - **Done when:** shared schema tests (valid with and without `website`); API integration test: a body with `website: "x"` returns `201`, `contact_messages` stays empty and the fake notifier is not called; site component test: the input is not reachable by keyboard (`tabindex="-1"`) and the submitted body includes `website` as an empty string for a human.
+69. **Integration and docs.** Integration test (Testcontainers `postgres:18` + a fake notifier injected through the app factory like the other services): a valid `POST /v1/contact` stores the row, calls the notifier once with the stored message and returns `201`; `lint`, `typecheck`, `test:coverage` green; `docs/DEPLOYMENT.md` documents the three variables and the Resend/DNS steps.
+   - **Done when:** `pnpm --filter @portfolio/api test:coverage` meets the §14.2 gate and the PR is open; stop here for the owner (steps 70–71 are theirs).
+70. **Owner: Resend account and DNS.** Create the account, add the domain `eosmin.dev` (Resend uses a `send.` subdomain for the return path, so it does not collide with Porkbun email forwarding on the root; confirm in the dashboard), publish the SPF/DKIM records Resend lists, add a `_dmarc` TXT record (`v=DMARC1; p=none; rua=mailto:contact@eosmin.dev` to start), wait until the domain shows Verified, create a **Sending access** key scoped to the domain, and set `RESEND_API_KEY`, `CONTACT_NOTIFY_FROM`, `CONTACT_NOTIFY_TO` in Railway (never in git).
+   - **Done when:** Resend shows the domain Verified and the three variables exist in Railway.
+71. **Verify live.** After the owner merges the PR and Railway deploys: submit the contact form from the live site.
+   - **Done when:** a mail from `notifications@eosmin.dev` arrives at the inbox behind `contact@eosmin.dev` with SPF and DKIM `PASS` (Gmail → Show original); pressing Reply addresses the visitor; a submission with the honeypot filled (via `curl`) returns `201` and sends nothing; the new live behavior is recorded in `PROGRESS.md`.
+
 ---
 
 ## 14. Testing Strategy
@@ -1381,6 +1413,11 @@ METRICS_TOKEN=changeme-long-random-token
 # Shared secret (min 16 chars) the site sends in the X-Site-Key header on server-side fetches so they
 # skip the public read rate limit. Set the same value in apps/site; never expose it to the browser.
 SITE_API_KEY=changeme-long-random-site-key
+# Contact notification email (Resend, §2.7.21; implemented in Phase 17, not before). All three are optional in development/test (the notifier
+# is then disabled and logs once at startup); all three are mandatory when NODE_ENV=production.
+RESEND_API_KEY=re_xxx
+CONTACT_NOTIFY_FROM='Portfolio <notifications@your-domain.dev>'
+CONTACT_NOTIFY_TO=contact@your-domain.dev
 DOTENV_QUIET=true
 
 # apps/site
