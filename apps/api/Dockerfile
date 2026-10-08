@@ -39,6 +39,13 @@ CMD ["./docker-entrypoint.sh"]
 FROM node:24.21.0-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
+# The api starts with plain `node`: drop the npm and corepack bundled in the base image (their
+# dependencies carry CVEs the Trivy gate flags) and take the patched perl-base from Debian.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends --only-upgrade perl-base \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=build --chown=node:node /out/node_modules ./node_modules
 COPY --from=build --chown=node:node /repo/apps/api/dist ./dist
 COPY --from=build --chown=node:node /repo/apps/api/drizzle ./drizzle
