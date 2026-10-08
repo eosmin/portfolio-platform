@@ -1,4 +1,3 @@
-import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
 import type { Express } from 'express';
 import { Redis } from 'ioredis';
 import { http, HttpResponse } from 'msw';
@@ -6,7 +5,7 @@ import { setupServer } from 'msw/node';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { githubStatsSchema } from '@portfolio/shared';
-import { appMounting } from '../helpers/infra.js';
+import { appMounting, provisionRedisUrl } from '../helpers/infra.js';
 import { createGithubClient } from '../../src/utils/github-proxy.js';
 import { createGithubRouter } from '../../src/modules/github/router.js';
 import {
@@ -55,13 +54,11 @@ const server = setupServer(
   }),
 );
 
-let container: StartedRedisContainer;
 let redis: Redis;
 let app: Express;
 
 beforeAll(async () => {
-  container = await new RedisContainer('redis:8.10.2').start();
-  redis = new Redis(container.getConnectionUrl());
+  redis = new Redis(await provisionRedisUrl());
   const service = createGithubService(createGithubClient({ token: TOKEN }), redis, 'octo');
   app = await appMounting('/v1/github', createGithubRouter(service));
   // Supertest talks to the app over loopback (must pass through); any other unmocked host is a bug.
@@ -78,11 +75,10 @@ beforeAll(async () => {
 afterAll(async () => {
   server.close();
   await redis.quit();
-  await container.stop();
 });
 
 beforeEach(async () => {
-  await redis.flushall();
+  await redis.flushdb();
   outbound = [];
   userHandler = () => HttpResponse.json(user);
   reposHandler = (req) =>

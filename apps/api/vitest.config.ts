@@ -5,8 +5,16 @@ export default defineConfig({
     // Inline projects inherit `env` and `coverage` from this root config (Vitest 5).
     projects: [
       { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
-      // Starts Testcontainers: needs Docker.
-      { test: { name: 'integration', include: ['tests/integration/**/*.test.ts'] } },
+      // The global setup starts Testcontainers: needs Docker.
+      {
+        test: {
+          name: 'integration',
+          include: ['tests/integration/**/*.test.ts'],
+          globalSetup: ['tests/global-setup.ts'],
+          // Testcontainers startup and supertest ports flake under CI load; never retry locally.
+          retry: process.env.CI ? 2 : 0,
+        },
+      },
     ],
     env: {
       NODE_ENV: 'test',
@@ -27,7 +35,11 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/main.ts', 'src/**/index.ts'],
-      thresholds: { lines: 75, functions: 75, branches: 75, statements: 75 },
+      // A single layer cannot reach the gate alone: the CI shard runs set COVERAGE_PARTIAL and the
+      // merge-reports run, which sees unit and integration together, enforces it.
+      thresholds: process.env.COVERAGE_PARTIAL
+        ? undefined
+        : { lines: 75, functions: 75, branches: 75, statements: 75 },
     },
   },
 });

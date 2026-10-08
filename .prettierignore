@@ -7,3 +7,5 @@ coverage
 pnpm-lock.yaml
 apps/api/drizzle
 docs/TDD.md
+.claude
+.mcp.json

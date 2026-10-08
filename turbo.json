@@ -22,9 +22,21 @@
       "dependsOn": ["^build"],
       "outputs": [".vitest"]
     },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "outputs": [".vitest"],
+      "passThroughEnv": ["COVERAGE_PARTIAL"]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "outputs": [".vitest"],
+      "passThroughEnv": ["CI", "COVERAGE_PARTIAL"]
+    },
     "test:coverage": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage", ".vitest"]
+      "outputs": ["coverage", ".vitest"],
+      "passThroughEnv": ["CI"]
     },
     "dev": {
       "dependsOn": ["^build"],

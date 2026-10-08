@@ -1,0 +1,36 @@
+name: site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  # A push to main must finish; only superseded PR runs are cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      # The build needs no running api (lib/env.ts only validates the shape); these are placeholders.
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:4000/v1
+      SITE_API_KEY: ci-placeholder-site-api-key
+      IMAGE_HOSTS: placehold.co
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run lint typecheck build --filter=@portfolio/site
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run test:coverage --filter=@portfolio/site

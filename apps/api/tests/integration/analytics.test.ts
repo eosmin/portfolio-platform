@@ -29,7 +29,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { pageViews } = await import('../../src/db/schema/index.js');
   await infra.db.delete(pageViews);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('POST /v1/analytics/views/:page', () => {

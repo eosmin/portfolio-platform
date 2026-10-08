@@ -38,7 +38,7 @@ afterAll(async () => {
 beforeEach(async () => {
   const { projects } = await import('../../src/db/schema/index.js');
   await infra.db.delete(projects);
-  await infra.redis.flushall();
+  await infra.redis.flushdb();
 });
 
 describe('GET /v1/projects', () => {
